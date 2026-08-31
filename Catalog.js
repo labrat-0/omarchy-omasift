@@ -184,6 +184,18 @@ function trustLabel(p) {
   return "Unknown"
 }
 
+// Row badges get the short form; the detail pane gets the sentence.
+function trustShort(p) {
+  if (!p) return ""
+  switch (p.trust) {
+  case "verified":   return "verified"
+  case "stale":      return "moved"
+  case "unreviewed": return "unreviewed"
+  case "builtin":    return "built in"
+  }
+  return ""
+}
+
 function trustNote(p) {
   if (!p) return ""
   switch (p.trust) {

@@ -52,8 +52,10 @@ Item {
 
   readonly property int contentMargin: Style.spacing.panelPadding
   readonly property int contentSpacing: Style.spacing.md
-  readonly property int rowHeight: Math.max(Style.space(46), Style.font.body + Style.font.caption + Style.spacing.rowPaddingX * 2)
-  readonly property int detailWidth: Style.space(360)
+  // One line per result. The description lives in the detail pane, so the
+  // list stays scannable instead of becoming a wall of prose.
+  readonly property int rowHeight: Math.max(Style.space(26), Style.font.body + Style.spacing.rowPaddingX)
+  readonly property int detailWidth: Style.space(300)
 
   function trustColor(p) {
     if (!p) return root.foreground
@@ -72,6 +74,9 @@ Item {
     root.flash = ""
     root.refreshCategories()
     root.rebuild()
+    // Without this the view keeps the scroll offset from the last summon and
+    // opens showing row four with the selection off-screen above it.
+    listView.positionViewAtBeginning()
     if (root.service && root.service.isStale() && !root.service.refreshing) root.service.refresh()
     Qt.callLater(function () { keyCatcher.forceActiveFocus() })
   }
@@ -217,8 +222,8 @@ Item {
 
     BorderSurface {
       id: card
-      width: Math.min(Style.space(1180), panel.width - Style.gapsOut * 2)
-      height: Math.min(Style.space(720), panel.height - Style.gapsOut * 2)
+      width: Math.min(Style.space(860), panel.width - Style.gapsOut * 2)
+      height: Math.min(Style.space(520), panel.height - Style.gapsOut * 2)
       radius: root.cornerRadius
       anchors.centerIn: parent
       color: root.background
@@ -281,73 +286,52 @@ Item {
         }
 
         Column {
+          // BorderSurface exposes its padded region as content insets; filling
+          // the raw parent instead puts the header count and the footer keys
+          // under the border, where they get clipped.
           anchors.fill: parent
+          anchors.topMargin: card.contentTopInset
+          anchors.rightMargin: card.contentRightInset
+          anchors.bottomMargin: card.contentBottomInset
+          anchors.leftMargin: card.contentLeftInset
           spacing: root.contentSpacing
 
           // ------------------------------------------------------- header
+          // One line: what you typed, and how much of the catalog survived it.
           Item {
+            id: header
             width: parent.width
-            height: header.implicitHeight
+            height: Math.max(searchText.implicitHeight, countText.implicitHeight)
 
-            Column {
-              id: header
-              width: parent.width
-              spacing: Style.spacing.labelGap
+            Text {
+              id: searchText
+              anchors.left: parent.left
+              anchors.right: countText.left
+              anchors.rightMargin: Style.spacing.controlGap
+              anchors.verticalCenter: parent.verticalCenter
+              elide: Text.ElideRight
+              text: "󰍉  " + (root.filterText.length ? root.filterText : "search the marketplace")
+              color: root.filterText.length ? root.foreground : Util.alpha(root.foreground, 0.4)
+              font.family: root.fontFamily
+              font.pixelSize: Style.font.subtitle
+            }
 
-              Row {
-                width: parent.width
-                spacing: Style.spacing.controlGap
-
-                Text {
-                  text: "OmaSift"
-                  color: root.foreground
-                  font.family: root.fontFamily
-                  font.pixelSize: Style.font.heading
-                  font.bold: true
-                }
-
-                Text {
-                  anchors.verticalCenter: parent.verticalCenter
-                  text: {
-                    if (!root.service) return "starting"
-                    if (!root.service.loaded) return "loading"
-                    var s = root.service.summary
-                    if (!s.total) return "no catalog yet — Ctrl+R to fetch"
-                    return s.total + " listings · " + s.verified + " verified · "
-                      + s.stale + " moved since review · " + s.unreviewed + " never reviewed"
-                  }
-                  color: Util.alpha(root.foreground, 0.7)
-                  font.family: root.fontFamily
-                  font.pixelSize: Style.font.caption
-                }
+            Text {
+              id: countText
+              anchors.right: parent.right
+              anchors.verticalCenter: parent.verticalCenter
+              text: {
+                if (!root.service) return ""
+                if (root.service.refreshing) return "refreshing"
+                if (!root.service.loaded) return "loading"
+                var n = root.service.summary.total
+                if (!n) return "no catalog — ctrl+r"
+                return root.results.length === n
+                  ? String(n) : (root.results.length + " of " + n)
               }
-
-              // search line
-              Text {
-                width: parent.width
-                elide: Text.ElideRight
-                text: "  " + (root.filterText.length ? root.filterText : "search the marketplace")
-                color: root.filterText.length ? root.foreground : Util.alpha(root.foreground, 0.45)
-                font.family: root.fontFamily
-                font.pixelSize: Style.font.subtitle
-              }
-
-              // filter line
-              Text {
-                width: parent.width
-                elide: Text.ElideRight
-                text: {
-                  var trust = root.trustFilter === "" ? "any review state"
-                    : (root.trustFilter === "verified" ? "verified only"
-                      : (root.trustFilter === "stale" ? "moved since review" : "never reviewed"))
-                  var cat = root.categoryFilter === "" ? "all categories" : root.categoryFilter
-                  return trust + "  ·  " + cat + "  ·  sorted by " + root.sortMode
-                    + "  ·  " + root.results.length + " shown"
-                }
-                color: Util.alpha(root.foreground, 0.7)
-                font.family: root.fontFamily
-                font.pixelSize: Style.font.caption
-              }
+              color: Util.alpha(root.foreground, 0.5)
+              font.family: root.fontFamily
+              font.pixelSize: Style.font.caption
             }
           }
 
@@ -361,7 +345,7 @@ Item {
           Item {
             width: parent.width
             height: parent.height - parent.spacing * 4
-                    - header.implicitHeight - 1 - footer.implicitHeight
+                    - header.height - 2 - footer.height
 
             ListView {
               id: listView
@@ -381,8 +365,8 @@ Item {
                 radius: root.cornerRadius
                 color: index === root.selectedIndex ? root.selectedBackground : "transparent"
 
-                readonly property color fg:
-                  index === root.selectedIndex ? root.selectedText : root.foreground
+                readonly property bool sel: index === root.selectedIndex
+                readonly property color fg: sel ? root.selectedText : root.foreground
 
                 MouseArea {
                   anchors.fill: parent
@@ -390,54 +374,43 @@ Item {
                   onDoubleClicked: { root.selectAbsolute(index); root.copyInstall() }
                 }
 
-                Column {
-                  anchors.verticalCenter: parent.verticalCenter
+                Text {
                   anchors.left: parent.left
-                  anchors.right: parent.right
+                  anchors.right: badges.left
+                  anchors.rightMargin: Style.spacing.controlGap
                   anchors.leftMargin: Style.spacing.rowPaddingX
-                  anchors.rightMargin: Style.spacing.rowPaddingX
-                  spacing: 1
+                  anchors.verticalCenter: parent.verticalCenter
+                  elide: Text.ElideRight
+                  text: modelData.name
+                  color: parent.fg
+                  font.family: root.fontFamily
+                  font.pixelSize: Style.font.body
+                }
 
-                  Row {
-                    spacing: Style.spacing.controlGap
-                    Text {
-                      text: modelData.name
-                      color: parent.parent.parent.fg
-                      font.family: root.fontFamily
-                      font.pixelSize: Style.font.body
-                      font.bold: true
-                    }
-                    Text {
-                      anchors.verticalCenter: parent.verticalCenter
-                      text: Catalog.trustLabel(modelData)
-                      color: index === root.selectedIndex
-                        ? root.selectedText : root.trustColor(modelData)
-                      font.family: root.fontFamily
-                      font.pixelSize: Style.font.caption
-                    }
-                    Text {
-                      anchors.verticalCenter: parent.verticalCenter
-                      visible: modelData.stars > 0
-                      text: "★ " + Catalog.starLabel(modelData.stars)
-                      color: Util.alpha(parent.parent.parent.fg, 0.7)
-                      font.family: root.fontFamily
-                      font.pixelSize: Style.font.caption
-                    }
-                    Text {
-                      anchors.verticalCenter: parent.verticalCenter
-                      visible: root.service !== null && root.service.isInstalled(modelData.id)
-                      text: "installed"
-                      color: Util.alpha(parent.parent.parent.fg, 0.7)
-                      font.family: root.fontFamily
-                      font.pixelSize: Style.font.caption
-                    }
-                  }
+                Row {
+                  id: badges
+                  anchors.right: parent.right
+                  anchors.rightMargin: Style.spacing.rowPaddingX
+                  anchors.verticalCenter: parent.verticalCenter
+                  spacing: Style.spacing.controlGap
 
                   Text {
-                    width: parent.width
-                    elide: Text.ElideRight
-                    text: modelData.desc ? modelData.desc : Catalog.repoLabel(modelData.repo)
-                    color: Util.alpha(parent.parent.fg, 0.72)
+                    visible: root.service !== null && root.service.isInstalled(modelData.id)
+                    text: "installed"
+                    color: Util.alpha(parent.parent.fg, 0.5)
+                    font.family: root.fontFamily
+                    font.pixelSize: Style.font.caption
+                  }
+                  Text {
+                    visible: modelData.stars > 0
+                    text: "\u2605" + Catalog.starLabel(modelData.stars)
+                    color: Util.alpha(parent.parent.fg, 0.5)
+                    font.family: root.fontFamily
+                    font.pixelSize: Style.font.caption
+                  }
+                  Text {
+                    text: Catalog.trustShort(modelData)
+                    color: parent.parent.sel ? root.selectedText : root.trustColor(modelData)
                     font.family: root.fontFamily
                     font.pixelSize: Style.font.caption
                   }
@@ -571,17 +544,47 @@ Item {
             }
           }
 
+          Rectangle {
+            width: parent.width
+            height: 1
+            color: Util.alpha(root.borderColor, 0.28)
+          }
+
           // -------------------------------------------------------- footer
-          Text {
+          // State on the left, the three keys worth naming on the right. The
+          // rest are in the README; a nine-item hint line is not a hint.
+          Item {
             id: footer
             width: parent.width
-            elide: Text.ElideRight
-            text: root.flash.length
-              ? root.flash
-              : "↑↓ move · Enter copy install · Shift+Enter copy repo · Alt+Enter open repo · Tab review state · Ctrl+G category · Ctrl+S sort · Ctrl+R refresh · Esc close"
-            color: root.flash.length ? Color.accent : Util.alpha(root.foreground, 0.55)
-            font.family: root.fontFamily
-            font.pixelSize: Style.font.caption
+            height: Math.max(stateText.implicitHeight, keysText.implicitHeight)
+
+            Text {
+              id: stateText
+              anchors.left: parent.left
+              anchors.right: keysText.left
+              anchors.rightMargin: Style.spacing.controlGap
+              anchors.verticalCenter: parent.verticalCenter
+              elide: Text.ElideRight
+              text: {
+                if (root.flash.length) return root.flash
+                var trust = root.trustFilter === "" ? "any review state" : Catalog.trustShort({ trust: root.trustFilter })
+                var cat = root.categoryFilter === "" ? "all categories" : root.categoryFilter
+                return trust + "  \u00b7  " + cat + "  \u00b7  " + root.sortMode
+              }
+              color: root.flash.length ? Color.accent : Util.alpha(root.foreground, 0.5)
+              font.family: root.fontFamily
+              font.pixelSize: Style.font.caption
+            }
+
+            Text {
+              id: keysText
+              anchors.right: parent.right
+              anchors.verticalCenter: parent.verticalCenter
+              text: "tab filter  \u00b7  \u21b5 copy  \u00b7  esc"
+              color: Util.alpha(root.foreground, 0.35)
+              font.family: root.fontFamily
+              font.pixelSize: Style.font.caption
+            }
           }
         }
       }
