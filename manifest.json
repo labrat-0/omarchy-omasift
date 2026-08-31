@@ -2,7 +2,7 @@
   "schemaVersion": 1,
   "id": "io.github.labrat-0.omasift",
   "name": "OmaSift",
-  "version": "0.1.0",
+  "version": "1.0.0",
   "author": "mick 'labrat' donahue",
   "license": "MIT",
   "description": "Search the Omarchy plugin marketplace from the shell, with the review status of every listing shown before you install it.",
