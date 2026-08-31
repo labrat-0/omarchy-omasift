@@ -67,39 +67,69 @@ Item {
   // A dim run of "tab filter · copy · esc" reads as prose. Boxing the key
   // makes it look pressable, and pairing it with the value it changes shows
   // what pressing it does without a legend.
-  component KeyHint: Row {
+  // A dim run of "tab filter · copy · esc" reads as prose. Boxing the key
+  // makes it look pressable, and pairing it with the value it changes shows
+  // what pressing it does without a legend.
+  //
+  // An Item wrapping a Row, rather than a Row directly: a MouseArea that
+  // fills a Row is sized by the Row and sizes it back, and the whole footer
+  // collapses to nothing.
+  component KeyHint: Item {
     id: hint
     property string cap: ""
     property string label: ""
     property bool engaged: false
-    spacing: Math.max(2, Style.spacing.controlGap / 2)
+    // Set for the interactive chips; the plain reminders leave it null.
+    property var onActivate: null
+    readonly property bool hovered: hitArea.containsMouse && hint.onActivate !== null
 
-    Rectangle {
+    implicitWidth: inner.implicitWidth
+    implicitHeight: inner.implicitHeight
+
+    Row {
+      id: inner
       anchors.verticalCenter: parent.verticalCenter
-      radius: Math.max(2, root.cornerRadius / 2)
-      implicitWidth: capText.implicitWidth + Style.space(9)
-      implicitHeight: capText.implicitHeight + Style.space(3)
-      color: Util.alpha(Color.accent, hint.engaged ? 0.30 : 0.14)
-      border.width: 1
-      border.color: Util.alpha(Color.accent, hint.engaged ? 0.75 : 0.40)
+      spacing: Math.max(2, Style.spacing.controlGap / 2)
+
+      Rectangle {
+        anchors.verticalCenter: parent.verticalCenter
+        radius: Math.max(2, root.cornerRadius / 2)
+        implicitWidth: capText.implicitWidth + Style.space(9)
+        implicitHeight: capText.implicitHeight + Style.space(3)
+        color: Util.alpha(Color.accent, hint.hovered ? 0.42 : (hint.engaged ? 0.30 : 0.14))
+        border.width: 1
+        border.color: Util.alpha(Color.accent, hint.hovered || hint.engaged ? 0.75 : 0.40)
+
+        Text {
+          id: capText
+          anchors.centerIn: parent
+          text: hint.cap
+          color: Color.accent
+          font.family: root.fontFamily
+          font.pixelSize: Style.font.caption
+          font.bold: true
+        }
+      }
 
       Text {
-        id: capText
-        anchors.centerIn: parent
-        text: hint.cap
-        color: Color.accent
+        anchors.verticalCenter: parent.verticalCenter
+        text: hint.label
+        color: hint.engaged || hint.hovered ? root.foreground : Util.alpha(root.foreground, 0.62)
         font.family: root.fontFamily
         font.pixelSize: Style.font.caption
-        font.bold: true
       }
     }
 
-    Text {
-      anchors.verticalCenter: parent.verticalCenter
-      text: hint.label
-      color: hint.engaged ? root.foreground : Util.alpha(root.foreground, 0.62)
-      font.family: root.fontFamily
-      font.pixelSize: Style.font.caption
+    // The whole chip is the target, not just the cap. Right-click steps back.
+    MouseArea {
+      id: hitArea
+      anchors.fill: parent
+      hoverEnabled: hint.onActivate !== null
+      acceptedButtons: hint.onActivate !== null ? (Qt.LeftButton | Qt.RightButton) : Qt.NoButton
+      cursorShape: hint.onActivate !== null ? Qt.PointingHandCursor : Qt.ArrowCursor
+      onClicked: function (mouse) {
+        if (hint.onActivate) hint.onActivate(mouse.button === Qt.RightButton ? -1 : 1)
+      }
     }
   }
 
@@ -288,13 +318,19 @@ Item {
           } else if (event.key === Qt.Key_Backtab) {
             root.cycleTrust(-1)
             event.accepted = true
-          } else if ((event.modifiers & Qt.ControlModifier) && event.key === Qt.Key_S) {
+          } else if (event.key === Qt.Key_Right) {
+            // Left/Right were free, and every letter belongs to the search
+            // box — so the filters use the keys you cannot type instead of
+            // modifier chords.
+            root.cycleCategory(1)
+            event.accepted = true
+          } else if (event.key === Qt.Key_Left) {
+            root.cycleCategory(-1)
+            event.accepted = true
+          } else if (event.key === Qt.Key_F2) {
             root.cycleSort(1)
             event.accepted = true
-          } else if ((event.modifiers & Qt.ControlModifier) && event.key === Qt.Key_G) {
-            root.cycleCategory(event.modifiers & Qt.ShiftModifier ? -1 : 1)
-            event.accepted = true
-          } else if ((event.modifiers & Qt.ControlModifier) && event.key === Qt.Key_R) {
+          } else if (event.key === Qt.Key_F5) {
             if (root.service) { root.service.refresh(); root.flash = "Refreshing…" }
             event.accepted = true
           } else if (Util.editsFilter(event, root.filterText)) {
@@ -605,20 +641,23 @@ Item {
               visible: root.flash.length === 0
 
               KeyHint {
-                cap: "Tab"
+                cap: "tab"
                 engaged: root.trustFilter !== ""
+                onActivate: function (step) { root.cycleTrust(step) }
                 label: root.trustFilter === ""
                   ? "any review state"
                   : Catalog.trustShort({ trust: root.trustFilter })
               }
               KeyHint {
-                cap: "^G"
+                cap: "\u2190\u2192"
                 engaged: root.categoryFilter !== ""
+                onActivate: function (step) { root.cycleCategory(step) }
                 label: root.categoryFilter === "" ? "all categories" : root.categoryFilter
               }
               KeyHint {
-                cap: "^S"
+                cap: "f2"
                 engaged: root.sortMode !== "stars"
+                onActivate: function (step) { root.cycleSort(step) }
                 label: root.sortMode
               }
             }
@@ -643,8 +682,14 @@ Item {
               spacing: Style.spacing.md
 
               KeyHint { cap: "\u21b5"; label: "copy install" }
-              KeyHint { cap: "^R"; label: "refresh" }
-              KeyHint { cap: "Esc"; label: "close" }
+              KeyHint {
+                cap: "f5"
+                label: "refresh"
+                onActivate: function (step) {
+                  if (root.service) { root.service.refresh(); root.flash = "Refreshing\u2026" }
+                }
+              }
+              KeyHint { cap: "esc"; label: "close" }
             }
           }
         }

@@ -45,14 +45,21 @@ omarchy-shell shell toggle io.github.labrat-0.omasift '{}'
 |---|---|
 | type | search name, id, tags, author, description |
 | <kbd>↑</kbd> <kbd>↓</kbd> | move · <kbd>PgUp</kbd>/<kbd>PgDn</kbd> jump · <kbd>Home</kbd>/<kbd>End</kbd> ends |
+| <kbd>Tab</kbd> | cycle review state (<kbd>Shift</kbd>+<kbd>Tab</kbd> back) |
+| <kbd>←</kbd> <kbd>→</kbd> | cycle category |
+| <kbd>F2</kbd> | cycle sort — stars (default), relevance, updated, added, name |
 | <kbd>Enter</kbd> | copy the install command |
 | <kbd>Shift</kbd>+<kbd>Enter</kbd> | copy the repo URL |
 | <kbd>Alt</kbd>+<kbd>Enter</kbd> | open the repo in a browser |
-| <kbd>Tab</kbd> | cycle review state |
-| <kbd>Ctrl</kbd>+<kbd>G</kbd> | cycle category |
-| <kbd>Ctrl</kbd>+<kbd>S</kbd> | cycle sort — stars (default), relevance, updated, added, name |
-| <kbd>Ctrl</kbd>+<kbd>R</kbd> | refresh the catalog |
+| <kbd>F5</kbd> | refresh the catalog |
 | <kbd>Esc</kbd> | clear the search, then close |
+
+Every letter you press goes into the search box, so the filters use keys you
+cannot type: <kbd>Tab</kbd>, the arrows, and the function keys. No modifier
+chords.
+
+The footer chips are also buttons — left-click one to step it forward,
+right-click to step back.
 
 ## It copies, it does not install
 
