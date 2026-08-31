@@ -1,0 +1,52 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1280 420" width="1280" height="420" role="img" aria-label="OmaSift — search the Omarchy plugin marketplace">
+  <defs>
+    <linearGradient id="bg" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0%" stop-color="#0E1621"/>
+      <stop offset="60%" stop-color="#101C27"/>
+      <stop offset="100%" stop-color="#0C1620"/>
+    </linearGradient>
+    <linearGradient id="funnel" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0%" stop-color="#7EF2B0"/>
+      <stop offset="100%" stop-color="#2BB673"/>
+    </linearGradient>
+    <radialGradient id="glow" cx="0.16" cy="0.5" r="0.55">
+      <stop offset="0%" stop-color="#2BB673" stop-opacity="0.20"/>
+      <stop offset="100%" stop-color="#2BB673" stop-opacity="0"/>
+    </radialGradient>
+  </defs>
+
+  <rect width="1280" height="420" fill="url(#bg)"/>
+  <rect width="1280" height="420" fill="url(#glow)"/>
+  <rect x="0" y="417" width="1280" height="3" fill="#2BB673" opacity="0.55"/>
+
+  <!-- mark -->
+  <g transform="translate(70 92) scale(0.46)">
+    <g fill="#5B6B7F">
+      <circle cx="186" cy="112" r="17" opacity=".55"/>
+      <circle cx="256" cy="100" r="17" opacity=".85"/>
+      <circle cx="326" cy="112" r="17" opacity=".55"/>
+    </g>
+    <path d="M120 168 H392 L296 296 V366 L216 334 V296 Z"
+          fill="url(#funnel)" stroke="#0E1621" stroke-width="6" stroke-linejoin="round"/>
+    <circle cx="176" cy="430" r="22" fill="#3DDC84"/>
+    <circle cx="256" cy="430" r="22" fill="#F5A524"/>
+    <circle cx="336" cy="430" r="22" fill="#7A8899"/>
+  </g>
+
+  <g font-family="JetBrains Mono, JetBrainsMono Nerd Font, DejaVu Sans Mono, monospace">
+    <text x="322" y="166" font-size="72" font-weight="700" fill="#E8EEF4">OmaSift</text>
+    <text x="326" y="216" font-size="25" fill="#9AA8B8">Search the Omarchy plugin marketplace from your shell.</text>
+    <text x="326" y="254" font-size="25" fill="#9AA8B8">See what has actually been reviewed — before you install it.</text>
+
+    <g font-size="22">
+      <circle cx="336" cy="322" r="9" fill="#3DDC84"/>
+      <text x="356" y="330" fill="#C6D2DE">1,346 verified</text>
+
+      <circle cx="596" cy="322" r="9" fill="#F5A524"/>
+      <text x="616" y="330" fill="#C6D2DE">387 moved since review</text>
+
+      <circle cx="962" cy="322" r="9" fill="#7A8899"/>
+      <text x="982" y="330" fill="#C6D2DE">226 never reviewed</text>
+    </g>
+  </g>
+</svg>

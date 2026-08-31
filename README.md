@@ -1,30 +1,53 @@
-# OmaSift
+<div align="center">
 
-Search the Omarchy plugin marketplace from inside the shell, and see what has
-actually been reviewed before you install it.
+![OmaSift](assets/banner.png)
 
-The marketplace has grown past the point where it can be browsed. OmaSift is a
-fullscreen, keyboard-first finder over every listing, and it puts one thing in
-front of you that a verified/unverified badge hides.
+**Search the Omarchy plugin marketplace from your shell — and see what has actually been reviewed before you install it.**
 
-## The review states
+[![License: MIT](https://img.shields.io/badge/License-MIT-3DDC84.svg)](LICENSE)
+![Omarchy Quattro](https://img.shields.io/badge/Omarchy-Quattro-2BB673)
+![Kinds](https://img.shields.io/badge/kinds-service%20%C2%B7%20bar--widget%20%C2%B7%20overlay-7A8899)
+![No install actions](https://img.shields.io/badge/installs%20nothing-by%20design-F5A524)
 
-The marketplace verifies a listing at a specific commit. `omarchy plugin add`
-clones whatever upstream HEAD is now. Those are not always the same commit, and
-a single "unverified" badge lumps together two very different situations:
+</div>
 
-| State | Meaning | Today |
-|---|---|---|
-| **Verified** | Reviewed, and upstream has not moved since. Install gets the reviewed code. | 1,346 |
-| **Verified, then moved** | Reviewed once, but upstream has moved on. Install clones a newer commit nobody reviewed. | 387 |
-| **Never reviewed** | Nobody has looked at this. | 226 |
+## The problem
 
-Press <kbd>Tab</kbd> to filter by review state. Searching `bluetooth` returns
-eight plugins; filtering to verified-only leaves one.
+The marketplace has grown past the point where anyone can browse it. There are
+**1,995 listings**, 87% of them bar widgets, and the badge on each one says
+either *verified* or *unverified*.
 
-The list opens sorted by stars, most-starred first. The footer shows each
-filter next to the key that cycles it, and lights that key up while it is
-holding something back.
+That single word hides something. A listing is verified at one commit.
+`omarchy plugin add` clones whatever upstream `HEAD` is **now**. When those
+differ, the marketplace quietly downgrades the badge to unverified — putting
+two very different situations under the same label:
+
+| | | Today |
+|---|---|--:|
+| 🟢 **Verified** | Reviewed, and upstream has not moved. Install gets the reviewed code. | 1,346 |
+| 🟠 **Verified, then moved** | Reviewed once, but upstream moved on. Install clones a newer commit **nobody reviewed**. | 387 |
+| ⚪ **Never reviewed** | Nobody has ever looked at it. | 226 |
+
+387 plugins were reviewed and then changed. 226 were never looked at. A binary
+badge tells you the same thing about both.
+
+## What OmaSift does
+
+It splits them, and lets you filter on the difference.
+
+<table>
+<tr>
+<td width="50%"><img src="assets/search.png" alt="Searching for bluetooth"></td>
+<td width="50%"><img src="assets/verified.png" alt="Filtered to verified only"></td>
+</tr>
+<tr>
+<td align="center"><code>bluetooth</code> → <b>8 plugins</b></td>
+<td align="center"><kbd>Tab</kbd> → <b>1 is actually verified</b></td>
+</tr>
+</table>
+
+Fullscreen, keyboard-first, and it opens in about as long as it takes to read
+this sentence. One line per result: name, stars, review state.
 
 ## Install
 
@@ -33,25 +56,10 @@ omarchy plugin add https://github.com/labrat-0/omarchy-omasift.git
 omarchy plugin enable io.github.labrat-0.omasift --section right
 ```
 
-Click the bar pill, or:
+Click the bar icon, or bind it:
 
 ```bash
 omarchy-shell shell toggle io.github.labrat-0.omasift '{}'
-```
-
-## Remove
-
-```bash
-omarchy plugin disable io.github.labrat-0.omasift
-omarchy plugin remove io.github.labrat-0.omasift
-```
-
-That deletes the checkout and the bar entry. The cached catalog is the only
-thing left outside the plugin directory, so remove it too if you want nothing
-behind:
-
-```bash
-rm -rf "${XDG_STATE_HOME:-$HOME/.local/state}/omasift"
 ```
 
 ## Keys
@@ -71,20 +79,37 @@ rm -rf "${XDG_STATE_HOME:-$HOME/.local/state}/omasift"
 
 Every letter you press goes into the search box, so the filters use keys you
 cannot type: <kbd>Tab</kbd>, the arrows, and the function keys. No modifier
-chords.
+chords. The footer chips are buttons too — left-click steps forward,
+right-click steps back.
 
-The footer chips are also buttons — left-click one to step it forward,
-right-click to step back.
-
-## It copies, it does not install
+## It copies. It does not install.
 
 <kbd>Enter</kbd> puts the install command on your clipboard. It does not run it.
 
 `omarchy plugin add` already does that job properly: it warns you, shows you the
 source, and lands the plugin disabled so you can read it before enabling. A
-browser that shelled out to a package manager would also have to declare the
+browser that shelled out to a package manager would have to declare the
 `installer` and `package-manager` capabilities — the same capabilities this
-plugin exists to help you notice in other people's code.
+plugin exists to help you notice in *other* people's code.
+
+## Security
+
+Plugins run unsandboxed inside `omarchy-shell`, so it is fair to ask what this
+one does:
+
+- **No shell strings are ever composed.** The only two commands it runs —
+  `wl-copy` and `xdg-open` — go through `Util.execArgv`, which passes arguments
+  as positional parameters so catalog text stays literal.
+- **The download is data, never code.** `bin/omasift-fetch` is pure Python: no
+  shell, no `curl`. It refuses a non-HTTPS URL, caps the response size, parses
+  it as JSON, and writes only the reduced result. Nothing downloaded is ever
+  written somewhere a later command executes.
+- **URLs are checked before they reach a handler.** Any repo URL that is not
+  `https://` is dropped at fetch time and refused again before `xdg-open`.
+- **No `sudo`, no package manager, no `systemctl`, no privileged helper, no
+  binaries, no symlinks, no post-install hooks.**
+- **Nothing is sent anywhere.** The only network request is a GET for the
+  public marketplace catalog.
 
 ## Settings
 
@@ -102,33 +127,27 @@ Set per bar-widget instance in `shell.json`, or through Setup › Plugins.
 parses the reduced file — a 5 MB JSON parse does not belong in the process that
 draws your desktop.
 
-`bin/omasift-doctor` checks the dependencies and reports catalog freshness.
+The catalog refreshes every 24 hours, or on <kbd>F5</kbd>.
 
-Nothing is sent anywhere. The only network request is a GET for the public
-catalog over HTTPS.
+`bin/omasift-doctor` checks dependencies and reports catalog freshness.
 
-### On the security of this plugin
+## Remove
 
-Plugins run unsandboxed inside `omarchy-shell`, so it is fair to ask what this
-one actually does:
+```bash
+omarchy plugin disable io.github.labrat-0.omasift
+omarchy plugin remove io.github.labrat-0.omasift
+```
 
-- **No shell strings are ever composed.** The two commands it can run —
-  `wl-copy` and `xdg-open` — go through `Util.execArgv`, which passes arguments
-  as positional parameters so catalog text stays literal.
-- **It never installs anything.** <kbd>Enter</kbd> copies a command for you to
-  read and run yourself. There is no `sudo`, no package manager, no `systemctl`,
-  and no privileged helper.
-- **The download is data, never code.** `bin/omasift-fetch` is pure Python with
-  no shell and no `curl`. It refuses a non-HTTPS URL, caps the response, parses
-  it as JSON, and writes only the reduced result. Nothing downloaded is ever
-  written somewhere a later command executes.
-- **URLs are checked before they reach a handler.** Any repo URL that is not
-  `https://` is dropped at fetch time and refused again before `xdg-open`.
-- **No binaries, no symlinks, no post-install hooks.**
+That deletes the checkout and the bar entry. The cached catalog is the only
+thing outside the plugin directory:
+
+```bash
+rm -rf "${XDG_STATE_HOME:-$HOME/.local/state}/omasift"
+```
 
 ## Requirements
 
-External dependencies, all standard on Omarchy:
+All standard on Omarchy:
 
 | Dependency | Used for |
 |---|---|
@@ -140,4 +159,7 @@ Run `bin/omasift-doctor` to check them.
 
 ## License
 
-MIT
+MIT — see [LICENSE](LICENSE).
+
+Counts in this README were taken from the marketplace catalog on 2026-08-31 and
+drift as listings are added and reviewed.

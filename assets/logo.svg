@@ -1,0 +1,26 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512" width="512" height="512" role="img" aria-label="OmaSift">
+  <defs>
+    <linearGradient id="funnel" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0%" stop-color="#7ef2b0"/>
+      <stop offset="100%" stop-color="#2bb673"/>
+    </linearGradient>
+  </defs>
+
+  <rect width="512" height="512" rx="112" fill="#0E1621"/>
+
+  <!-- Unsorted listings going in. -->
+  <g fill="#5B6B7F">
+    <circle cx="186" cy="112" r="17" opacity=".55"/>
+    <circle cx="256" cy="100" r="17" opacity=".85"/>
+    <circle cx="326" cy="112" r="17" opacity=".55"/>
+  </g>
+
+  <!-- The sieve. -->
+  <path d="M120 168 H392 L296 296 V366 L216 334 V296 Z"
+        fill="url(#funnel)" stroke="#0E1621" stroke-width="6" stroke-linejoin="round"/>
+
+  <!-- What comes out the other side: reviewed, moved on, never looked at. -->
+  <circle cx="176" cy="430" r="22" fill="#3DDC84"/>
+  <circle cx="256" cy="430" r="22" fill="#F5A524"/>
+  <circle cx="336" cy="430" r="22" fill="#7A8899"/>
+</svg>
