@@ -78,7 +78,6 @@ Set per bar-widget instance in `shell.json`, or through Setup › Plugins.
 | Key | Default | Meaning |
 |---|---|---|
 | `refreshHours` | `24` | how often to refetch the catalog |
-| `showCount` | `true` | show the listing count next to the bar icon |
 
 ## How it works
 

@@ -404,7 +404,9 @@ Item {
                 return root.results.length === n
                   ? String(n) : (root.results.length + " of " + n)
               }
-              color: Util.alpha(root.foreground, 0.5)
+              // The only place the catalog size is shown now that the bar
+              // pill is icon-only, so it reads a shade stronger than a hint.
+              color: Util.alpha(root.foreground, 0.66)
               font.family: root.fontFamily
               font.pixelSize: Style.font.caption
             }

@@ -30,8 +30,7 @@
     "allowMultiple": false,
     "defaultSection": "right",
     "defaults": {
-      "refreshHours": 24,
-      "showCount": true
+      "refreshHours": 24
     },
     "schema": [
       {
@@ -42,12 +41,6 @@
         "max": 168,
         "step": 1,
         "defaultValue": 24
-      },
-      {
-        "key": "showCount",
-        "type": "boolean",
-        "label": "Show the plugin count next to the icon",
-        "defaultValue": true
       }
     ]
   }
