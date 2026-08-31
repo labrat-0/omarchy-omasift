@@ -20,7 +20,7 @@
         fill="url(#funnel)" stroke="#0E1621" stroke-width="6" stroke-linejoin="round"/>
 
   <!-- What comes out the other side: reviewed, moved on, never looked at. -->
-  <circle cx="176" cy="430" r="22" fill="#3DDC84"/>
+  <circle cx="176" cy="430" r="22" fill="#00FF9C"/>
   <circle cx="256" cy="430" r="22" fill="#F5A524"/>
-  <circle cx="336" cy="430" r="22" fill="#7A8899"/>
+  <circle cx="336" cy="430" r="22" fill="#8B9BB4"/>
 </svg>

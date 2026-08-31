@@ -1,52 +1,51 @@
-<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1280 420" width="1280" height="420" role="img" aria-label="OmaSift — search the Omarchy plugin marketplace">
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1280 420" width="1280" height="420" role="img" aria-label="OMASIFT - marketplace assay">
   <defs>
-    <linearGradient id="bg" x1="0" y1="0" x2="1" y2="1">
-      <stop offset="0%" stop-color="#0E1621"/>
-      <stop offset="60%" stop-color="#101C27"/>
-      <stop offset="100%" stop-color="#0C1620"/>
-    </linearGradient>
     <linearGradient id="funnel" x1="0" y1="0" x2="0" y2="1">
       <stop offset="0%" stop-color="#7EF2B0"/>
-      <stop offset="100%" stop-color="#2BB673"/>
+      <stop offset="100%" stop-color="#00C87A"/>
     </linearGradient>
-    <radialGradient id="glow" cx="0.16" cy="0.5" r="0.55">
-      <stop offset="0%" stop-color="#2BB673" stop-opacity="0.20"/>
-      <stop offset="100%" stop-color="#2BB673" stop-opacity="0"/>
+    <radialGradient id="glow" cx="0.14" cy="0.5" r="0.6">
+      <stop offset="0%" stop-color="#00FF9C" stop-opacity="0.14"/>
+      <stop offset="100%" stop-color="#00FF9C" stop-opacity="0"/>
     </radialGradient>
   </defs>
 
-  <rect width="1280" height="420" fill="url(#bg)"/>
+  <rect width="1280" height="420" fill="#0A0C0F"/>
   <rect width="1280" height="420" fill="url(#glow)"/>
-  <rect x="0" y="417" width="1280" height="3" fill="#2BB673" opacity="0.55"/>
-
-  <!-- mark -->
-  <g transform="translate(70 92) scale(0.46)">
-    <g fill="#5B6B7F">
-      <circle cx="186" cy="112" r="17" opacity=".55"/>
-      <circle cx="256" cy="100" r="17" opacity=".85"/>
-      <circle cx="326" cy="112" r="17" opacity=".55"/>
-    </g>
-    <path d="M120 168 H392 L296 296 V366 L216 334 V296 Z"
-          fill="url(#funnel)" stroke="#0E1621" stroke-width="6" stroke-linejoin="round"/>
-    <circle cx="176" cy="430" r="22" fill="#3DDC84"/>
-    <circle cx="256" cy="430" r="22" fill="#F5A524"/>
-    <circle cx="336" cy="430" r="22" fill="#7A8899"/>
-  </g>
 
   <g font-family="JetBrains Mono, JetBrainsMono Nerd Font, DejaVu Sans Mono, monospace">
-    <text x="322" y="166" font-size="72" font-weight="700" fill="#E8EEF4">OmaSift</text>
-    <text x="326" y="216" font-size="25" fill="#9AA8B8">Search the Omarchy plugin marketplace from your shell.</text>
-    <text x="326" y="254" font-size="25" fill="#9AA8B8">See what has actually been reviewed — before you install it.</text>
+    <text x="70" y="52" font-size="13" fill="#00FF9C" opacity="0.22">001101101101101100000010110111101111011001110011000010110110101000010000111101010011000101000111111111101111011100110110110101000010110010101111011110</text>
 
-    <g font-size="22">
-      <circle cx="336" cy="322" r="9" fill="#3DDC84"/>
-      <text x="356" y="330" fill="#C6D2DE">1,346 verified</text>
-
-      <circle cx="596" cy="322" r="9" fill="#F5A524"/>
-      <text x="616" y="330" fill="#C6D2DE">387 moved since review</text>
-
-      <circle cx="962" cy="322" r="9" fill="#7A8899"/>
-      <text x="982" y="330" fill="#C6D2DE">226 never reviewed</text>
+    <g transform="translate(64 104) scale(0.44)">
+      <g fill="#5B6B7F">
+        <circle cx="186" cy="112" r="17" opacity=".55"/>
+        <circle cx="256" cy="100" r="17" opacity=".85"/>
+        <circle cx="326" cy="112" r="17" opacity=".55"/>
+      </g>
+      <path d="M120 168 H392 L296 296 V366 L216 334 V296 Z"
+            fill="url(#funnel)" stroke="#0A0C0F" stroke-width="6" stroke-linejoin="round"/>
+      <circle cx="176" cy="430" r="22" fill="#00FF9C"/>
+      <circle cx="256" cy="430" r="22" fill="#FFB020"/>
+      <circle cx="336" cy="430" r="22" fill="#8B9BB4"/>
     </g>
+
+    <text x="318" y="170" font-size="66" font-weight="700" fill="#00FF9C" letter-spacing="2">[OMASIFT]</text>
+    <text x="322" y="206" font-size="19" fill="#6B7785" letter-spacing="3">&#9656; MARKETPLACE ASSAY</text>
+
+    <text x="322" y="256" font-size="23" fill="#E6EDF3">Search the Omarchy plugin marketplace from your shell.</text>
+    <text x="322" y="288" font-size="23" fill="#6B7785">See what has actually been reviewed &#8212; before you install it.</text>
+
+    <g font-size="20" letter-spacing="1">
+      <text x="322" y="342" fill="#00FF9C" font-weight="700">[VERIFIED]</text>
+      <text x="466" y="342" fill="#C6D2DE">1,346</text>
+
+      <text x="548" y="342" fill="#FFB020" font-weight="700">[MOVED]</text>
+      <text x="658" y="342" fill="#C6D2DE">387</text>
+
+      <text x="716" y="342" fill="#8B9BB4" font-weight="700">[UNREVIEWED]</text>
+      <text x="890" y="342" fill="#C6D2DE">226</text>
+    </g>
+
+    <text x="70" y="392" font-size="13" fill="#00FF9C" opacity="0.22">001101101101101100000010110111101111011001110011000010110110101000010000111101010011000101000111111111101111011100110110110101000010110010101111011110</text>
   </g>
 </svg>

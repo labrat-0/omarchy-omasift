@@ -12,6 +12,7 @@ BarWidget {
   property var service: null
 
   readonly property int refreshHours: Math.max(1, Number(root.setting("refreshHours", 24)) || 24)
+  readonly property string palette: String(root.setting("palette", "lab"))
 
   readonly property var summary: root.service ? root.service.summary : null
 
@@ -27,7 +28,9 @@ BarWidget {
   }
 
   function pushSettings() {
-    if (root.service) root.service.refreshHours = root.refreshHours
+    if (!root.service) return
+    root.service.refreshHours = root.refreshHours
+    root.service.palette = root.palette
   }
 
   function openBrowser() {
@@ -51,6 +54,7 @@ BarWidget {
 
   onServiceChanged: root.pushSettings()
   onRefreshHoursChanged: root.pushSettings()
+  onPaletteChanged: root.pushSettings()
   Component.onCompleted: root.findService()
 
   Timer {

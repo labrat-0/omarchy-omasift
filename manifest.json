@@ -30,7 +30,8 @@
     "allowMultiple": false,
     "defaultSection": "right",
     "defaults": {
-      "refreshHours": 24
+      "refreshHours": 24,
+      "palette": "lab"
     },
     "schema": [
       {
@@ -41,6 +42,17 @@
         "max": 168,
         "step": 1,
         "defaultValue": 24
+      },
+      {
+        "key": "palette",
+        "type": "enum",
+        "label": "Look",
+        "options": [
+          "lab",
+          "shell"
+        ],
+        "defaultValue": "lab",
+        "description": "'lab' is OmaSift's own instrument-panel look. 'shell' follows your Omarchy theme instead."
       }
     ]
   }

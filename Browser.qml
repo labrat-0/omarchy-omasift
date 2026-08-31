@@ -40,13 +40,31 @@ Item {
 
   // ------------------------------------------------------------ theme tokens
 
-  property color background: Color.menu.background
-  property color foreground: Color.menu.text
-  property color borderColor: Color.menu.border
-  property var borderSpec: Border.surfaceSpec("menu", "border", borderColor, Math.max(1, Style.space(2)))
-  property color scrim: Color.menu.scrim
-  property color selectedBackground: Color.menu.selectedBackground
-  property color selectedText: Color.menu.selectedText
+  // "lab" is the plugin's own identity — near-black, neon, instrument readout.
+  // "shell" hands everything back to the active Omarchy theme for anyone who
+  // wants the desktop to look like one thing.
+  readonly property bool lab: !root.service || root.service.palette !== "shell"
+
+  property color background: lab ? "#0A0C0F" : Color.menu.background
+  property color surface:    lab ? "#0E1116" : Util.alpha(Color.menu.border, 0.10)
+  property color foreground: lab ? "#E6EDF3" : Color.menu.text
+  property color dim:        lab ? "#6B7785" : Util.alpha(Color.menu.text, 0.55)
+  property color neon:       lab ? "#00FF9C" : Color.accent
+  property color borderColor: lab ? "#1C2128" : Color.menu.border
+  // Border.flat builds the {color, widths, gradient} shape BorderSurface reads.
+  // A hand-rolled {color, width} has no `widths`, so every side measures 0 and
+  // the surface renders as nothing at all.
+  property var borderSpec: lab
+    ? Border.flat(root.neon, Math.max(1, Style.space(1)))
+    : Border.surfaceSpec("menu", "border", borderColor, Math.max(1, Style.space(2)))
+  property color scrim: lab ? "#CC000000" : Color.menu.scrim
+  property color selectedBackground: lab ? "#16202A" : Color.menu.selectedBackground
+  property color selectedText: lab ? "#E6EDF3" : Color.menu.selectedText
+
+  readonly property color cVerified:   lab ? "#00FF9C" : Color.accent
+  readonly property color cMoved:      lab ? "#FFB020" : Color.foreground
+  readonly property color cUnreviewed: lab ? "#8B9BB4" : Color.urgent
+  readonly property color cBuiltin:    root.dim
   readonly property int cornerRadius: Style.cornerRadius
   property string fontFamily: Style.font.menuFamily
 
@@ -59,9 +77,31 @@ Item {
 
   function trustColor(p) {
     if (!p) return root.foreground
-    if (p.trust === "verified") return Color.accent
-    if (p.trust === "unreviewed") return Color.urgent
+    switch (p.trust) {
+    case "verified":   return root.cVerified
+    case "stale":      return root.cMoved
+    case "unreviewed": return root.cUnreviewed
+    case "builtin":    return root.cBuiltin
+    }
     return root.foreground
+  }
+
+  // A decorative bit run, the way the site uses one as a rule. Deterministic
+  // from a seed so it does not shimmer on every repaint.
+  function bits(count, seed) {
+    var out = ""
+    var x = seed || 1
+    for (var i = 0; i < count; i++) {
+      x = (x * 1103515245 + 12345) & 0x7fffffff
+      out += (x >> 16) & 1 ? "1" : "0"
+    }
+    return out
+  }
+
+  function pad3(n) {
+    var s = String(n + 1)
+    while (s.length < 3) s = "0" + s
+    return s
   }
 
   // A dim run of "tab filter · copy · esc" reads as prose. Boxing the key
@@ -89,38 +129,28 @@ Item {
     Row {
       id: inner
       anchors.verticalCenter: parent.verticalCenter
-      spacing: Math.max(2, Style.spacing.controlGap / 2)
+      spacing: Math.max(3, Style.spacing.controlGap / 2)
 
-      Rectangle {
+      Text {
         anchors.verticalCenter: parent.verticalCenter
-        radius: Math.max(2, root.cornerRadius / 2)
-        implicitWidth: capText.implicitWidth + Style.space(9)
-        implicitHeight: capText.implicitHeight + Style.space(3)
-        color: Util.alpha(Color.accent, hint.hovered ? 0.42 : (hint.engaged ? 0.30 : 0.14))
-        border.width: 1
-        border.color: Util.alpha(Color.accent, hint.hovered || hint.engaged ? 0.75 : 0.40)
-
-        Text {
-          id: capText
-          anchors.centerIn: parent
-          text: hint.cap
-          color: Color.accent
-          font.family: root.fontFamily
-          font.pixelSize: Style.font.caption
-          font.bold: true
-        }
+        text: "[" + hint.cap.toUpperCase() + "]"
+        color: hint.hovered || hint.engaged ? root.neon : Util.alpha(root.neon, 0.62)
+        font.family: root.fontFamily
+        font.pixelSize: Style.font.caption
+        font.bold: true
       }
 
       Text {
         anchors.verticalCenter: parent.verticalCenter
-        text: hint.label
-        color: hint.engaged || hint.hovered ? root.foreground : Util.alpha(root.foreground, 0.62)
+        text: hint.label.toUpperCase()
+        color: hint.engaged || hint.hovered ? root.foreground : root.dim
         font.family: root.fontFamily
         font.pixelSize: Style.font.caption
+        font.letterSpacing: 0.5
       }
     }
 
-    // The whole chip is the target, not just the cap. Right-click steps back.
+    // The whole chip is the target. Right-click steps back.
     MouseArea {
       id: hitArea
       anchors.fill: parent
@@ -380,57 +410,84 @@ Item {
           spacing: root.contentSpacing
 
           // ------------------------------------------------------- header
-          // One line: what you typed, and how much of the catalog survived it.
+          // Wordmark, state readout, then the prompt you type at.
           Item {
             id: header
             width: parent.width
-            height: Math.max(searchText.implicitHeight, countText.implicitHeight)
+            height: brand.implicitHeight + Style.spacing.labelGap + prompt.implicitHeight
+
+            Row {
+              id: brand
+              anchors.left: parent.left
+              anchors.top: parent.top
+              spacing: Style.spacing.controlGap
+
+              Text {
+                text: "[OMASIFT]"
+                color: root.neon
+                font.family: root.fontFamily
+                font.pixelSize: Style.font.subtitle
+                font.bold: true
+                font.letterSpacing: 1
+              }
+              Text {
+                anchors.verticalCenter: parent.verticalCenter
+                text: "\u25B8 MARKETPLACE ASSAY"
+                color: root.dim
+                font.family: root.fontFamily
+                font.pixelSize: Style.font.caption
+                font.letterSpacing: 1
+              }
+            }
 
             Text {
-              id: searchText
+              anchors.right: parent.right
+              anchors.top: parent.top
+              text: {
+                if (!root.service) return "BOOTING"
+                if (root.service.refreshing) return "SYNCING\u2026"
+                if (!root.service.loaded) return "LOADING"
+                var n = root.service.summary.total
+                if (!n) return "NO CATALOG \u2014 F5"
+                return (root.results.length === n
+                  ? n + " LISTINGS"
+                  : root.results.length + " / " + n + " LISTINGS")
+              }
+              color: root.service && root.service.refreshing ? root.neon : root.dim
+              font.family: root.fontFamily
+              font.pixelSize: Style.font.caption
+              font.letterSpacing: 1
+            }
+
+            Text {
+              id: prompt
               anchors.left: parent.left
-              anchors.right: countText.left
-              anchors.rightMargin: Style.spacing.controlGap
-              anchors.verticalCenter: parent.verticalCenter
+              anchors.right: parent.right
+              anchors.bottom: parent.bottom
               elide: Text.ElideRight
-              text: "󰍉  " + (root.filterText.length ? root.filterText : "search the marketplace")
-              color: root.filterText.length ? root.foreground : Util.alpha(root.foreground, 0.4)
+              text: "\u25B8 " + (root.filterText.length ? root.filterText : "search the marketplace")
+              color: root.filterText.length ? root.foreground : Util.alpha(root.foreground, 0.35)
               font.family: root.fontFamily
               font.pixelSize: Style.font.subtitle
             }
-
-            Text {
-              id: countText
-              anchors.right: parent.right
-              anchors.verticalCenter: parent.verticalCenter
-              text: {
-                if (!root.service) return ""
-                if (root.service.refreshing) return "refreshing"
-                if (!root.service.loaded) return "loading"
-                var n = root.service.summary.total
-                if (!n) return "no catalog — ctrl+r"
-                return root.results.length === n
-                  ? String(n) : (root.results.length + " of " + n)
-              }
-              // The only place the catalog size is shown now that the bar
-              // pill is icon-only, so it reads a shade stronger than a hint.
-              color: Util.alpha(root.foreground, 0.66)
-              font.family: root.fontFamily
-              font.pixelSize: Style.font.caption
-            }
           }
 
-          Rectangle {
+          // A bit run for a rule, the way the site uses one.
+          Text {
+            id: topRule
             width: parent.width
-            height: 1
-            color: Util.alpha(root.borderColor, 0.28)
+            clip: true
+            text: root.bits(400, 20260831)
+            color: Util.alpha(root.neon, 0.22)
+            font.family: root.fontFamily
+            font.pixelSize: Style.font.caption
           }
 
           // -------------------------------------------------- list + detail
           Item {
             width: parent.width
             height: parent.height - parent.spacing * 4
-                    - header.height - 2 - footer.height
+                    - header.height - topRule.height - bottomRule.height - footer.height
 
             ListView {
               id: listView
@@ -447,7 +504,6 @@ Item {
 
                 width: ListView.view.width
                 height: root.rowHeight
-                radius: root.cornerRadius
                 color: index === root.selectedIndex ? root.selectedBackground : "transparent"
 
                 readonly property bool sel: index === root.selectedIndex
@@ -459,11 +515,32 @@ Item {
                   onDoubleClicked: { root.selectAbsolute(index); root.copyInstall() }
                 }
 
-                Text {
+                // Selection reads as a cursor on an instrument, not a button.
+                Rectangle {
                   anchors.left: parent.left
+                  anchors.top: parent.top
+                  anchors.bottom: parent.bottom
+                  width: Style.space(2)
+                  color: root.neon
+                  visible: parent.sel
+                }
+
+                Text {
+                  id: gutter
+                  anchors.left: parent.left
+                  anchors.leftMargin: Style.spacing.rowPaddingX
+                  anchors.verticalCenter: parent.verticalCenter
+                  text: root.pad3(index)
+                  color: parent.sel ? root.neon : Util.alpha(root.dim, 0.7)
+                  font.family: root.fontFamily
+                  font.pixelSize: Style.font.caption
+                }
+
+                Text {
+                  anchors.left: gutter.right
+                  anchors.leftMargin: Style.spacing.controlGap
                   anchors.right: badges.left
                   anchors.rightMargin: Style.spacing.controlGap
-                  anchors.leftMargin: Style.spacing.rowPaddingX
                   anchors.verticalCenter: parent.verticalCenter
                   elide: Text.ElideRight
                   text: modelData.name
@@ -481,23 +558,24 @@ Item {
 
                   Text {
                     visible: root.service !== null && root.service.isInstalled(modelData.id)
-                    text: "installed"
-                    color: Util.alpha(parent.parent.fg, 0.5)
+                    text: "\u25CF INSTALLED"
+                    color: Util.alpha(root.dim, 0.9)
                     font.family: root.fontFamily
                     font.pixelSize: Style.font.caption
                   }
                   Text {
                     visible: modelData.stars > 0
                     text: "\u2605" + Catalog.starLabel(modelData.stars)
-                    color: Util.alpha(parent.parent.fg, 0.5)
+                    color: root.dim
                     font.family: root.fontFamily
                     font.pixelSize: Style.font.caption
                   }
                   Text {
-                    text: Catalog.trustShort(modelData)
-                    color: parent.parent.sel ? root.selectedText : root.trustColor(modelData)
+                    text: "[" + Catalog.trustShort(modelData).toUpperCase() + "]"
+                    color: root.trustColor(modelData)
                     font.family: root.fontFamily
                     font.pixelSize: Style.font.caption
+                    font.letterSpacing: 0.5
                   }
                 }
               }
@@ -508,8 +586,7 @@ Item {
               width: root.detailWidth
               height: parent.height
               anchors.right: parent.right
-              radius: root.cornerRadius
-              color: Util.alpha(root.borderColor, 0.10)
+              color: root.surface
 
               Column {
                 anchors.fill: parent
@@ -531,7 +608,7 @@ Item {
                   width: parent.width
                   elide: Text.ElideRight
                   text: root.current ? root.current.id : ""
-                  color: Util.alpha(root.foreground, 0.6)
+                  color: Util.alpha(root.dim, 0.9)
                   font.family: root.fontFamily
                   font.pixelSize: Style.font.caption
                 }
@@ -545,14 +622,28 @@ Item {
                   font.pixelSize: Style.font.bodySmall
                 }
 
-                Rectangle {
-                  width: parent.width; height: 1
-                  color: Util.alpha(root.borderColor, 0.28)
+                Text {
+                  width: parent.width
+                  clip: true
+                  text: root.bits(60, 4242)
+                  color: Util.alpha(root.neon, 0.22)
+                  font.family: root.fontFamily
+                  font.pixelSize: Style.font.caption
                 }
 
                 Text {
                   width: parent.width
-                  text: root.current ? Catalog.trustLabel(root.current) : ""
+                  text: "REVIEW STATE"
+                  color: root.dim
+                  font.family: root.fontFamily
+                  font.pixelSize: Style.font.caption
+                  font.letterSpacing: 1
+                }
+
+                Text {
+                  width: parent.width
+                  text: root.current
+                    ? "[" + Catalog.trustShort(root.current).toUpperCase() + "]" : ""
                   color: root.trustColor(root.current)
                   font.family: root.fontFamily
                   font.pixelSize: Style.font.bodySmall
@@ -563,14 +654,18 @@ Item {
                   width: parent.width
                   wrapMode: Text.WordWrap
                   text: root.current ? Catalog.trustNote(root.current) : ""
-                  color: Util.alpha(root.foreground, 0.75)
+                  color: Util.alpha(root.foreground, 0.72)
                   font.family: root.fontFamily
                   font.pixelSize: Style.font.caption
                 }
 
-                Rectangle {
-                  width: parent.width; height: 1
-                  color: Util.alpha(root.borderColor, 0.28)
+                Text {
+                  width: parent.width
+                  clip: true
+                  text: root.bits(60, 909)
+                  color: Util.alpha(root.neon, 0.22)
+                  font.family: root.fontFamily
+                  font.pixelSize: Style.font.caption
                 }
 
                 Text {
@@ -580,17 +675,16 @@ Item {
                     var p = root.current
                     if (!p) return ""
                     var bits = []
-                    if (p.author) bits.push("by " + p.author)
-                    if (p.version) bits.push("v" + p.version)
-                    if (p.kind) bits.push(p.kind)
-                    if (p.cat) bits.push(p.cat)
-                    if (p.license) bits.push(p.license)
-                    if (p.stars) bits.push("★ " + Catalog.starLabel(p.stars))
-                    if (p.updated) bits.push("updated " + Catalog.ageLabel(p.updated, Date.now()))
-                    if (p.status === "Manual setup") bits.push("manual setup")
-                    return bits.join("  ·  ")
+                    if (p.author) bits.push("BY " + p.author.toUpperCase())
+                    if (p.version) bits.push("V" + p.version)
+                    if (p.kind) bits.push(p.kind.toUpperCase())
+                    if (p.cat) bits.push(p.cat.toUpperCase())
+                    if (p.license) bits.push(p.license.toUpperCase())
+                    if (p.updated) bits.push("UPD " + Catalog.ageLabel(p.updated, Date.now()).toUpperCase())
+                    if (p.status === "Manual setup") bits.push("MANUAL SETUP")
+                    return bits.join("  \u00b7  ")
                   }
-                  color: Util.alpha(root.foreground, 0.7)
+                  color: root.dim
                   font.family: root.fontFamily
                   font.pixelSize: Style.font.caption
                 }
@@ -599,7 +693,7 @@ Item {
                   width: parent.width
                   elide: Text.ElideRight
                   text: root.current ? Catalog.repoLabel(root.current.repo) : ""
-                  color: Util.alpha(root.foreground, 0.7)
+                  color: Util.alpha(root.neon, 0.75)
                   font.family: root.fontFamily
                   font.pixelSize: Style.font.caption
                 }
@@ -607,7 +701,7 @@ Item {
                 Text {
                   width: parent.width
                   wrapMode: Text.WrapAnywhere
-                  text: root.current && root.current.install ? root.current.install : ""
+                  text: root.current && root.current.install ? "$ " + root.current.install : ""
                   color: Util.alpha(root.foreground, 0.9)
                   font.family: root.fontFamily
                   font.pixelSize: Style.font.caption
@@ -621,18 +715,20 @@ Item {
                 horizontalAlignment: Text.AlignHCenter
                 wrapMode: Text.WordWrap
                 text: root.service && root.service.loaded
-                  ? "Nothing matches that." : "Loading the catalog…"
-                color: Util.alpha(root.foreground, 0.55)
+                  ? "NO MATCH" : "LOADING CATALOG\u2026"
+                color: root.dim
                 font.family: root.fontFamily
                 font.pixelSize: Style.font.bodySmall
+                font.letterSpacing: 1
               }
             }
           }
 
           Rectangle {
+            id: bottomRule
             width: parent.width
             height: 1
-            color: Util.alpha(root.borderColor, 0.28)
+            color: Util.alpha(root.neon, 0.20)
           }
 
           // -------------------------------------------------------- footer
@@ -679,8 +775,8 @@ Item {
               anchors.verticalCenter: parent.verticalCenter
               visible: root.flash.length > 0
               elide: Text.ElideRight
-              text: root.flash
-              color: Color.accent
+              text: "\u25B8 " + root.flash
+              color: root.neon
               font.family: root.fontFamily
               font.pixelSize: Style.font.caption
             }

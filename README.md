@@ -47,7 +47,21 @@ It splits them, and lets you filter on the difference.
 </table>
 
 Fullscreen, keyboard-first, and it opens in about as long as it takes to read
-this sentence. One line per result: name, stars, review state.
+this sentence. One line per result: index, name, stars, review state.
+
+### The look
+
+OmaSift reads as an instrument, not a store: a bracket wordmark, a bit-run for a
+rule, zero-padded row indices, and `[VERIFIED]` / `[MOVED]` / `[UNREVIEWED]` as
+badges rather than prose. Three colours carry the whole model — neon for
+reviewed, amber for reviewed-then-moved, steel for never-looked-at — and they
+are the same three dots in the logo.
+
+Amber and steel are deliberate. The marketplace is explicit that unverified
+"is not a claim that the plugin is malicious", so nothing here is painted red.
+
+If you would rather the desktop look like one thing, set `palette` to `shell`
+and every colour comes from your active Omarchy theme instead.
 
 ## Install
 
@@ -118,6 +132,7 @@ Set per bar-widget instance in `shell.json`, or through Setup › Plugins.
 | Key | Default | Meaning |
 |---|---|---|
 | `refreshHours` | `24` | how often to refetch the catalog |
+| `palette` | `lab` | `lab` for OmaSift's own instrument-panel look, `shell` to follow your Omarchy theme |
 
 ## How it works
 

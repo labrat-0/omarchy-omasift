@@ -28,6 +28,8 @@ Item {
   property bool refreshing: false
   property string lastError: ""
   property int refreshHours: 24
+  // "lab" (the plugin's own look) or "shell" (follow the Omarchy theme).
+  property string palette: "lab"
 
   readonly property var summary: Catalog.summarize(root.index.plugins)
   readonly property int count: root.index.count
