@@ -1,0 +1,135 @@
+#!/bin/bash
+
+# Fetch the public marketplace catalog and reduce it to the compact index the
+# shell reads. The published catalog is ~5 MB of JSON; parsing that inside the
+# process that also draws the desktop is not something a bar widget should do
+# on a timer, so the reduction happens out here and the shell only ever loads
+# the small result.
+#
+# Usage: omasift-fetch [--quiet]
+
+set -o pipefail
+
+CATALOG_URL="${OMASIFT_CATALOG_URL:-https://raw.githubusercontent.com/omacom/omarchy-plugin-marketplace/main/site/catalog.json}"
+STATE_DIR="${XDG_STATE_HOME:-$HOME/.local/state}/omasift"
+OUT="$STATE_DIR/catalog.json"
+# The catalog grows with every listing. The ceiling is generous enough to
+# outlive years of growth and still refuse a response that is not the catalog.
+MAX_BYTES="${OMASIFT_MAX_BYTES:-33554432}"
+
+QUIET=0
+[[ ${1:-} == --quiet ]] && QUIET=1
+say() { [[ $QUIET == 1 ]] || echo "$*"; }
+die() { echo "omasift-fetch: $*" >&2; exit 1; }
+
+command -v curl >/dev/null 2>&1 || die "curl is required"
+command -v python3 >/dev/null 2>&1 || die "python3 is required"
+
+mkdir -p "$STATE_DIR" || die "could not create $STATE_DIR"
+
+TMP=$(mktemp "$STATE_DIR/.fetch.XXXXXX") || die "could not create a temp file"
+trap 'rm -f "$TMP"' EXIT
+
+say "Fetching $CATALOG_URL"
+# --max-filesize refuses a declared oversize before the body lands; head -c
+# closes the pipe on anything that ignores the declaration. Between them what
+# reaches the reducer is bounded no matter what the far end does.
+curl -fsSL --max-time 60 --max-filesize "$MAX_BYTES" "$CATALOG_URL" \
+  | head -c "$MAX_BYTES" > "$TMP" || die "download failed"
+
+[[ -s $TMP ]] || die "downloaded catalog is empty"
+
+python3 - "$TMP" "$OUT" <<'PY' || die "could not reduce the catalog"
+import json, os, sys, tempfile, datetime
+
+src, out = sys.argv[1], sys.argv[2]
+
+with open(src) as fh:
+    doc = json.load(fh)
+
+plugins = doc.get("plugins")
+if not isinstance(plugins, list) or not plugins:
+    sys.exit("catalog has no plugins array")
+
+
+def text(value):
+    return value if isinstance(value, str) else ""
+
+
+rows = []
+for p in plugins:
+    if not isinstance(p, dict):
+        continue
+    pid = text(p.get("id"))
+    if not pid:
+        continue
+
+    # A single verified/unverified badge collapses two populations that
+    # deserve different reactions: plugins reviewed at a commit that upstream
+    # has since moved past, and plugins nobody ever reviewed. The marketplace
+    # separates them in verificationCoverage; carry that through rather than
+    # flattening it back into a boolean.
+    coverage = text(p.get("verificationCoverage"))
+    status = text(p.get("verificationStatus"))
+    if status == "verified":
+        trust = "verified"
+    elif coverage == "update-unverified":
+        trust = "stale"          # reviewed once, upstream has moved since
+    elif coverage or status:
+        trust = "unreviewed"
+    else:
+        trust = "builtin"        # first-party: no listing to verify
+
+    validated = text(p.get("listingValidatedCommit"))
+    observed = text(p.get("upstreamObservedCommit"))
+    drift = bool(validated and observed and validated != observed)
+
+    rows.append({
+        "id": pid,
+        "name": text(p.get("name")) or pid,
+        "desc": text(p.get("description")),
+        "author": text(p.get("author")),
+        "cat": text(p.get("category")),
+        "tags": [t for t in (p.get("tags") or []) if isinstance(t, str)],
+        "kind": text(p.get("kind")),
+        "status": text(p.get("status")),
+        "repo": text(p.get("repo")),
+        "ver": text(p.get("verificationStatus")),
+        "trust": trust,
+        "cov": coverage,
+        "stars": int(p.get("stars") or 0),
+        "license": text(p.get("license")),
+        "install": text(p.get("installCommand")),
+        "note": text(p.get("installNote")),
+        "added": text(p.get("addedAt"))[:10],
+        "updated": text(p.get("repositoryUpdatedAt"))[:10],
+        "drift": drift,
+    })
+
+rows.sort(key=lambda r: r["name"].lower())
+
+index = {
+    "v": 1,
+    "fetchedAt": datetime.datetime.now(datetime.timezone.utc)
+        .isoformat(timespec="seconds").replace("+00:00", "Z"),
+    "generatedAt": text(doc.get("generatedAt")),
+    "count": len(rows),
+    "plugins": rows,
+}
+
+os.makedirs(os.path.dirname(out), exist_ok=True)
+fd, tmp = tempfile.mkstemp(dir=os.path.dirname(out), prefix=".catalog.")
+try:
+    with os.fdopen(fd, "w") as fh:
+        json.dump(index, fh, separators=(",", ":"))
+        fh.write("\n")
+    os.chmod(tmp, 0o600)
+    os.replace(tmp, out)   # atomic: readers never see a half-written index
+except BaseException:
+    os.unlink(tmp)
+    raise
+
+print("%d plugins -> %s" % (len(rows), out))
+PY
+
+say "Done."

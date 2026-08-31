@@ -1,0 +1,54 @@
+{
+  "schemaVersion": 1,
+  "id": "io.github.labrat-0.omasift",
+  "name": "OmaSift",
+  "version": "0.1.0",
+  "author": "mick 'labrat' donahue",
+  "license": "MIT",
+  "description": "Search the Omarchy plugin marketplace from the shell, with the review status of every listing shown before you install it.",
+  "kinds": [
+    "service",
+    "bar-widget",
+    "overlay"
+  ],
+  "keepLoaded": true,
+  "entryPoints": {
+    "service": "Service.qml",
+    "barWidget": "BarWidget.qml",
+    "overlay": "Browser.qml"
+  },
+  "barWidget": {
+    "displayName": "OmaSift",
+    "description": "Search the plugin marketplace and see what has actually been reviewed.",
+    "category": "System",
+    "aliases": [
+      "omasift",
+      "sift",
+      "marketplace",
+      "plugins"
+    ],
+    "allowMultiple": false,
+    "defaultSection": "right",
+    "defaults": {
+      "refreshHours": 24,
+      "showCount": true
+    },
+    "schema": [
+      {
+        "key": "refreshHours",
+        "type": "integer",
+        "label": "Refresh the catalog every (hours)",
+        "min": 1,
+        "max": 168,
+        "step": 1,
+        "defaultValue": 24
+      },
+      {
+        "key": "showCount",
+        "type": "boolean",
+        "label": "Show the plugin count next to the icon",
+        "defaultValue": true
+      }
+    ]
+  }
+}
