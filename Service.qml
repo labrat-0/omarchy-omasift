@@ -135,8 +135,8 @@ Item {
     }
   }
 
-  // curl has its own timeout. This only covers the helper itself wedging,
-  // which curl's timeout cannot speak for.
+  // The helper sets its own socket timeout. This only covers the helper
+  // process itself wedging, which that timeout cannot speak for.
   Timer {
     id: fetchGuard
     interval: 90000

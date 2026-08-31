@@ -39,6 +39,21 @@ Click the bar pill, or:
 omarchy-shell shell toggle io.github.labrat-0.omasift '{}'
 ```
 
+## Remove
+
+```bash
+omarchy plugin disable io.github.labrat-0.omasift
+omarchy plugin remove io.github.labrat-0.omasift
+```
+
+That deletes the checkout and the bar entry. The cached catalog is the only
+thing left outside the plugin directory, so remove it too if you want nothing
+behind:
+
+```bash
+rm -rf "${XDG_STATE_HOME:-$HOME/.local/state}/omasift"
+```
+
 ## Keys
 
 | Key | Action |
@@ -82,19 +97,46 @@ Set per bar-widget instance in `shell.json`, or through Setup › Plugins.
 ## How it works
 
 `bin/omasift-fetch` downloads the marketplace's published `site/catalog.json`
-(~5 MB) with a bounded `curl`, reduces it to the ~1.3 MB the UI needs, and
-writes it atomically to `$XDG_STATE_HOME/omasift/catalog.json`. The shell only
-ever parses the reduced file — a 5 MB JSON parse does not belong in the process
-that draws your desktop.
+(~5 MB), reduces it to the ~1.3 MB the UI needs, and writes it atomically to
+`$XDG_STATE_HOME/omasift/catalog.json`, owner-readable. The shell only ever
+parses the reduced file — a 5 MB JSON parse does not belong in the process that
+draws your desktop.
 
 `bin/omasift-doctor` checks the dependencies and reports catalog freshness.
 
 Nothing is sent anywhere. The only network request is a GET for the public
-catalog.
+catalog over HTTPS.
+
+### On the security of this plugin
+
+Plugins run unsandboxed inside `omarchy-shell`, so it is fair to ask what this
+one actually does:
+
+- **No shell strings are ever composed.** The two commands it can run —
+  `wl-copy` and `xdg-open` — go through `Util.execArgv`, which passes arguments
+  as positional parameters so catalog text stays literal.
+- **It never installs anything.** <kbd>Enter</kbd> copies a command for you to
+  read and run yourself. There is no `sudo`, no package manager, no `systemctl`,
+  and no privileged helper.
+- **The download is data, never code.** `bin/omasift-fetch` is pure Python with
+  no shell and no `curl`. It refuses a non-HTTPS URL, caps the response, parses
+  it as JSON, and writes only the reduced result. Nothing downloaded is ever
+  written somewhere a later command executes.
+- **URLs are checked before they reach a handler.** Any repo URL that is not
+  `https://` is dropped at fetch time and refused again before `xdg-open`.
+- **No binaries, no symlinks, no post-install hooks.**
 
 ## Requirements
 
-`curl`, `python3`, `wl-copy` (wl-clipboard), and `xdg-open` for opening repos.
+External dependencies, all standard on Omarchy:
+
+| Dependency | Used for |
+|---|---|
+| `python3` | fetching and reducing the catalog |
+| `wl-copy` (wl-clipboard) | copying the install command and repo URL |
+| `xdg-open` (xdg-utils) | opening a repo in your browser (optional) |
+
+Run `bin/omasift-doctor` to check them.
 
 ## License
 

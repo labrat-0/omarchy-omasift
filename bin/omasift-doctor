@@ -13,7 +13,7 @@ bad()  { echo "  FAIL  $*"; FAIL=1; }
 
 echo "OmaSift doctor"
 
-for cmd in curl python3 wl-copy; do
+for cmd in python3 wl-copy; do
   if command -v "$cmd" >/dev/null 2>&1; then ok "$cmd"
   else bad "$cmd is missing"; fi
 done
@@ -22,9 +22,11 @@ if command -v xdg-open >/dev/null 2>&1; then ok "xdg-open"
 else warn "xdg-open is missing — 'open repo' will do nothing"; fi
 
 if [[ -f $CATALOG ]]; then
-  count=$(python3 -c "import json,sys; print(json.load(open('$CATALOG'))['count'])" 2>/dev/null)
-  when=$(python3 -c "import json,sys; print(json.load(open('$CATALOG'))['fetchedAt'])" 2>/dev/null)
-  if [[ -n $count ]]; then ok "catalog: $count listings, fetched $when"
+  # Path goes in as argv, not spliced into the program text.
+  summary=$(python3 -c 'import json,sys
+d = json.load(open(sys.argv[1]))
+print("%d listings, fetched %s" % (d["count"], d["fetchedAt"]))' "$CATALOG" 2>/dev/null)
+  if [[ -n $summary ]]; then ok "catalog: $summary"
   else bad "catalog exists but will not parse: $CATALOG"; fi
 else
   warn "no catalog yet — run: $(dirname "$0")/omasift-fetch"

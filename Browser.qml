@@ -244,23 +244,31 @@ Item {
       root.flash = p.note ? p.note : "No install command — this listing needs manual setup."
       return
     }
-    Quickshell.execDetached(["bash", "-c",
-      "printf %s " + Util.shellQuote(p.install) + " | wl-copy"])
+    // execArgv, not a composed shell string: every value here came out of a
+    // downloaded catalog, and argv means it stays literal rather than being
+    // re-tokenized by a shell.
+    Util.execArgv(["wl-copy", "--", p.install])
     root.flash = "Copied: " + p.install
   }
 
   function copyRepo() {
     var p = root.current
     if (!p || !p.repo) return
-    Quickshell.execDetached(["bash", "-c",
-      "printf %s " + Util.shellQuote(p.repo) + " | wl-copy"])
+    Util.execArgv(["wl-copy", "--", p.repo])
     root.flash = "Copied: " + p.repo
   }
 
   function openRepo() {
     var p = root.current
     if (!p || !p.repo) return
-    Quickshell.execDetached(["xdg-open", p.repo])
+    // The fetcher already drops anything that is not https, but this is the
+    // call that reaches a desktop handler, so it checks for itself rather than
+    // trusting a file written by something else.
+    if (String(p.repo).indexOf("https://") !== 0) {
+      root.flash = "Not a web address, refusing to open it"
+      return
+    }
+    Util.execArgv(["xdg-open", p.repo])
     root.flash = "Opened " + Catalog.repoLabel(p.repo)
   }
 
