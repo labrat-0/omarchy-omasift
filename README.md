@@ -120,8 +120,8 @@ one does:
   written somewhere a later command executes.
 - **URLs are checked before they reach a handler.** Any repo URL that is not
   `https://` is dropped at fetch time and refused again before `xdg-open`.
-- **No `sudo`, no package manager, no `systemctl`, no privileged helper, no
-  binaries, no symlinks, no post-install hooks.**
+- **No privilege escalation, no package manager, no service control, no
+  privileged helper, no binaries, no symlinks, no post-install hooks.**
 - **Nothing is sent anywhere.** The only network request is a GET for the
   public marketplace catalog.
 
