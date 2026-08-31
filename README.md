@@ -22,6 +22,10 @@ a single "unverified" badge lumps together two very different situations:
 Press <kbd>Tab</kbd> to filter by review state. Searching `bluetooth` returns
 eight plugins; filtering to verified-only leaves one.
 
+The list opens sorted by stars, most-starred first. The footer shows each
+filter next to the key that cycles it, and lights that key up while it is
+holding something back.
+
 ## Install
 
 ```bash
@@ -46,7 +50,7 @@ omarchy-shell shell toggle io.github.labrat-0.omasift '{}'
 | <kbd>Alt</kbd>+<kbd>Enter</kbd> | open the repo in a browser |
 | <kbd>Tab</kbd> | cycle review state |
 | <kbd>Ctrl</kbd>+<kbd>G</kbd> | cycle category |
-| <kbd>Ctrl</kbd>+<kbd>S</kbd> | cycle sort (relevance, stars, updated, added, name) |
+| <kbd>Ctrl</kbd>+<kbd>S</kbd> | cycle sort — stars (default), relevance, updated, added, name |
 | <kbd>Ctrl</kbd>+<kbd>R</kbd> | refresh the catalog |
 | <kbd>Esc</kbd> | clear the search, then close |
 

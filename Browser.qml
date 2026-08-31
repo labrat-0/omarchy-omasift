@@ -25,13 +25,13 @@ Item {
 
   property string trustFilter: ""
   property string categoryFilter: ""
-  property string sortMode: "relevance"
+  property string sortMode: "stars"
   property string flash: ""
 
   property var results: []
 
   readonly property var trustCycle: ["", "verified", "stale", "unreviewed"]
-  readonly property var sortCycle: ["relevance", "stars", "updated", "added", "name"]
+  readonly property var sortCycle: ["stars", "relevance", "updated", "added", "name"]
   property var categoryCycle: [""]
 
   readonly property var current:
@@ -62,6 +62,45 @@ Item {
     if (p.trust === "verified") return Color.accent
     if (p.trust === "unreviewed") return Color.urgent
     return root.foreground
+  }
+
+  // A dim run of "tab filter · copy · esc" reads as prose. Boxing the key
+  // makes it look pressable, and pairing it with the value it changes shows
+  // what pressing it does without a legend.
+  component KeyHint: Row {
+    id: hint
+    property string cap: ""
+    property string label: ""
+    property bool engaged: false
+    spacing: Math.max(2, Style.spacing.controlGap / 2)
+
+    Rectangle {
+      anchors.verticalCenter: parent.verticalCenter
+      radius: Math.max(2, root.cornerRadius / 2)
+      implicitWidth: capText.implicitWidth + Style.space(9)
+      implicitHeight: capText.implicitHeight + Style.space(3)
+      color: Util.alpha(Color.accent, hint.engaged ? 0.30 : 0.14)
+      border.width: 1
+      border.color: Util.alpha(Color.accent, hint.engaged ? 0.75 : 0.40)
+
+      Text {
+        id: capText
+        anchors.centerIn: parent
+        text: hint.cap
+        color: Color.accent
+        font.family: root.fontFamily
+        font.pixelSize: Style.font.caption
+        font.bold: true
+      }
+    }
+
+    Text {
+      anchors.verticalCenter: parent.verticalCenter
+      text: hint.label
+      color: hint.engaged ? root.foreground : Util.alpha(root.foreground, 0.62)
+      font.family: root.fontFamily
+      font.pixelSize: Style.font.caption
+    }
   }
 
   // ---------------------------------------------------------------- lifecycle
@@ -551,39 +590,61 @@ Item {
           }
 
           // -------------------------------------------------------- footer
-          // State on the left, the three keys worth naming on the right. The
-          // rest are in the README; a nine-item hint line is not a hint.
+          // Each filter sits next to the key that cycles it, and lights up
+          // when it is holding something back.
           Item {
             id: footer
             width: parent.width
-            height: Math.max(stateText.implicitHeight, keysText.implicitHeight)
+            height: Math.max(leftHints.implicitHeight, rightHints.implicitHeight)
+
+            Row {
+              id: leftHints
+              anchors.left: parent.left
+              anchors.verticalCenter: parent.verticalCenter
+              spacing: Style.spacing.md
+              visible: root.flash.length === 0
+
+              KeyHint {
+                cap: "Tab"
+                engaged: root.trustFilter !== ""
+                label: root.trustFilter === ""
+                  ? "any review state"
+                  : Catalog.trustShort({ trust: root.trustFilter })
+              }
+              KeyHint {
+                cap: "^G"
+                engaged: root.categoryFilter !== ""
+                label: root.categoryFilter === "" ? "all categories" : root.categoryFilter
+              }
+              KeyHint {
+                cap: "^S"
+                engaged: root.sortMode !== "stars"
+                label: root.sortMode
+              }
+            }
 
             Text {
-              id: stateText
               anchors.left: parent.left
-              anchors.right: keysText.left
-              anchors.rightMargin: Style.spacing.controlGap
+              anchors.right: rightHints.left
+              anchors.rightMargin: Style.spacing.md
               anchors.verticalCenter: parent.verticalCenter
+              visible: root.flash.length > 0
               elide: Text.ElideRight
-              text: {
-                if (root.flash.length) return root.flash
-                var trust = root.trustFilter === "" ? "any review state" : Catalog.trustShort({ trust: root.trustFilter })
-                var cat = root.categoryFilter === "" ? "all categories" : root.categoryFilter
-                return trust + "  \u00b7  " + cat + "  \u00b7  " + root.sortMode
-              }
-              color: root.flash.length ? Color.accent : Util.alpha(root.foreground, 0.5)
+              text: root.flash
+              color: Color.accent
               font.family: root.fontFamily
               font.pixelSize: Style.font.caption
             }
 
-            Text {
-              id: keysText
+            Row {
+              id: rightHints
               anchors.right: parent.right
               anchors.verticalCenter: parent.verticalCenter
-              text: "tab filter  \u00b7  \u21b5 copy  \u00b7  esc"
-              color: Util.alpha(root.foreground, 0.35)
-              font.family: root.fontFamily
-              font.pixelSize: Style.font.caption
+              spacing: Style.spacing.md
+
+              KeyHint { cap: "\u21b5"; label: "copy install" }
+              KeyHint { cap: "^R"; label: "refresh" }
+              KeyHint { cap: "Esc"; label: "close" }
             }
           }
         }
