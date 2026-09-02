@@ -135,6 +135,7 @@ Item {
         anchors.verticalCenter: parent.verticalCenter
         text: "[" + hint.cap.toUpperCase() + "]"
         color: hint.hovered || hint.engaged ? root.neon : Util.alpha(root.neon, 0.62)
+        textFormat: Text.PlainText
         font.family: root.fontFamily
         font.pixelSize: Style.font.caption
         font.bold: true
@@ -144,6 +145,7 @@ Item {
         anchors.verticalCenter: parent.verticalCenter
         text: hint.label.toUpperCase()
         color: hint.engaged || hint.hovered ? root.foreground : root.dim
+        textFormat: Text.PlainText
         font.family: root.fontFamily
         font.pixelSize: Style.font.caption
         font.letterSpacing: 0.5
@@ -262,6 +264,20 @@ Item {
 
   // ----------------------------------------------------------------- actions
 
+  // Ceilings applied at the sink itself. Catalog.js already bounds these fields
+  // when the index is parsed; repeating the cap here means a value that arrived
+  // some other way still cannot hand an oversized argument to an external
+  // program or an unbounded string to the status line.
+  readonly property int maxArgumentChars: 512
+  readonly property int maxFlashChars: 160
+
+  function capped(value, limit) {
+    var s = String(value === undefined || value === null ? "" : value)
+    return s.length > limit ? s.slice(0, limit) : s
+  }
+
+  function say(message) { root.flash = root.capped(message, root.maxFlashChars) }
+
   // Deliberately copy rather than run. Installing is `omarchy plugin add`'s
   // job: it warns, shows the source, and lands the plugin disabled for review.
   // A browser that shelled out to it would be asking you to trust two things
@@ -270,36 +286,41 @@ Item {
   function copyInstall() {
     var p = root.current
     if (!p) return
-    if (!p.install) {
-      root.flash = p.note ? p.note : "No install command — this listing needs manual setup."
+    var command = root.capped(p.install, root.maxArgumentChars)
+    if (!command) {
+      root.say(p.note ? p.note : "No install command — this listing needs manual setup.")
       return
     }
     // execArgv, not a composed shell string: every value here came out of a
     // downloaded catalog, and argv means it stays literal rather than being
     // re-tokenized by a shell.
-    Util.execArgv(["wl-copy", "--", p.install])
-    root.flash = "Copied: " + p.install
+    Util.execArgv(["wl-copy", "--", command])
+    root.say("Copied: " + command)
   }
 
   function copyRepo() {
     var p = root.current
-    if (!p || !p.repo) return
-    Util.execArgv(["wl-copy", "--", p.repo])
-    root.flash = "Copied: " + p.repo
+    if (!p) return
+    var repo = Catalog.cleanRepo(p.repo)
+    if (!repo) { root.say("No repository link on this listing"); return }
+    Util.execArgv(["wl-copy", "--", root.capped(repo, root.maxArgumentChars)])
+    root.say("Copied: " + repo)
   }
 
   function openRepo() {
     var p = root.current
-    if (!p || !p.repo) return
-    // The fetcher already drops anything that is not https, but this is the
-    // call that reaches a desktop handler, so it checks for itself rather than
-    // trusting a file written by something else.
-    if (String(p.repo).indexOf("https://") !== 0) {
-      root.flash = "Not a web address, refusing to open it"
+    if (!p) return
+    // Re-canonicalised rather than prefix-tested. This is the call that reaches
+    // a desktop handler, so it holds the URL to the same GitHub origin and
+    // owner/name path shape the fetcher enforces, instead of trusting a string
+    // that came out of a file something else may have written.
+    var repo = Catalog.cleanRepo(p.repo)
+    if (!repo) {
+      root.say("Not a GitHub repository link, refusing to open it")
       return
     }
-    Util.execArgv(["xdg-open", p.repo])
-    root.flash = "Opened " + Catalog.repoLabel(p.repo)
+    Util.execArgv(["xdg-open", root.capped(repo, root.maxArgumentChars)])
+    root.say("Opened " + Catalog.repoLabel(repo))
   }
 
   onServiceChanged: { root.refreshCategories(); root.rebuild() }
@@ -369,7 +390,7 @@ Item {
             root.cycleSort(1)
             event.accepted = true
           } else if (event.key === Qt.Key_F5) {
-            if (root.service) { root.service.refresh(); root.flash = "Refreshing…" }
+            if (root.service) { root.service.refresh(); root.say("Refreshing…") }
             event.accepted = true
           } else if (Util.editsFilter(event, root.filterText)) {
             root.setFilter(Util.editedFilter(event, root.filterText))
@@ -425,6 +446,7 @@ Item {
               Text {
                 text: "[OMASIFT]"
                 color: root.neon
+                textFormat: Text.PlainText
                 font.family: root.fontFamily
                 font.pixelSize: Style.font.subtitle
                 font.bold: true
@@ -434,6 +456,7 @@ Item {
                 anchors.verticalCenter: parent.verticalCenter
                 text: "\u25B8 MARKETPLACE ASSAY"
                 color: root.dim
+                textFormat: Text.PlainText
                 font.family: root.fontFamily
                 font.pixelSize: Style.font.caption
                 font.letterSpacing: 1
@@ -454,6 +477,7 @@ Item {
                   : root.results.length + " / " + n + " LISTINGS")
               }
               color: root.service && root.service.refreshing ? root.neon : root.dim
+              textFormat: Text.PlainText
               font.family: root.fontFamily
               font.pixelSize: Style.font.caption
               font.letterSpacing: 1
@@ -467,6 +491,7 @@ Item {
               elide: Text.ElideRight
               text: "\u25B8 " + (root.filterText.length ? root.filterText : "search the marketplace")
               color: root.filterText.length ? root.foreground : Util.alpha(root.foreground, 0.35)
+              textFormat: Text.PlainText
               font.family: root.fontFamily
               font.pixelSize: Style.font.subtitle
             }
@@ -479,6 +504,7 @@ Item {
             clip: true
             text: root.bits(400, 20260831)
             color: Util.alpha(root.neon, 0.22)
+            textFormat: Text.PlainText
             font.family: root.fontFamily
             font.pixelSize: Style.font.caption
           }
@@ -532,6 +558,7 @@ Item {
                   anchors.verticalCenter: parent.verticalCenter
                   text: root.pad3(index)
                   color: parent.sel ? root.neon : Util.alpha(root.dim, 0.7)
+                  textFormat: Text.PlainText
                   font.family: root.fontFamily
                   font.pixelSize: Style.font.caption
                 }
@@ -545,6 +572,7 @@ Item {
                   elide: Text.ElideRight
                   text: modelData.name
                   color: parent.fg
+                  textFormat: Text.PlainText
                   font.family: root.fontFamily
                   font.pixelSize: Style.font.body
                 }
@@ -560,6 +588,7 @@ Item {
                     visible: root.service !== null && root.service.isInstalled(modelData.id)
                     text: "\u25CF INSTALLED"
                     color: Util.alpha(root.dim, 0.9)
+                    textFormat: Text.PlainText
                     font.family: root.fontFamily
                     font.pixelSize: Style.font.caption
                   }
@@ -567,12 +596,14 @@ Item {
                     visible: modelData.stars > 0
                     text: "\u2605" + Catalog.starLabel(modelData.stars)
                     color: root.dim
+                    textFormat: Text.PlainText
                     font.family: root.fontFamily
                     font.pixelSize: Style.font.caption
                   }
                   Text {
                     text: "[" + Catalog.trustShort(modelData).toUpperCase() + "]"
                     color: root.trustColor(modelData)
+                    textFormat: Text.PlainText
                     font.family: root.fontFamily
                     font.pixelSize: Style.font.caption
                     font.letterSpacing: 0.5
@@ -599,6 +630,7 @@ Item {
                   wrapMode: Text.WordWrap
                   text: root.current ? root.current.name : ""
                   color: root.foreground
+                  textFormat: Text.PlainText
                   font.family: root.fontFamily
                   font.pixelSize: Style.font.title
                   font.bold: true
@@ -609,6 +641,7 @@ Item {
                   elide: Text.ElideRight
                   text: root.current ? root.current.id : ""
                   color: Util.alpha(root.dim, 0.9)
+                  textFormat: Text.PlainText
                   font.family: root.fontFamily
                   font.pixelSize: Style.font.caption
                 }
@@ -618,6 +651,7 @@ Item {
                   wrapMode: Text.WordWrap
                   text: root.current ? root.current.desc : ""
                   color: Util.alpha(root.foreground, 0.85)
+                  textFormat: Text.PlainText
                   font.family: root.fontFamily
                   font.pixelSize: Style.font.bodySmall
                 }
@@ -627,6 +661,7 @@ Item {
                   clip: true
                   text: root.bits(60, 4242)
                   color: Util.alpha(root.neon, 0.22)
+                  textFormat: Text.PlainText
                   font.family: root.fontFamily
                   font.pixelSize: Style.font.caption
                 }
@@ -635,6 +670,7 @@ Item {
                   width: parent.width
                   text: "REVIEW STATE"
                   color: root.dim
+                  textFormat: Text.PlainText
                   font.family: root.fontFamily
                   font.pixelSize: Style.font.caption
                   font.letterSpacing: 1
@@ -645,6 +681,7 @@ Item {
                   text: root.current
                     ? "[" + Catalog.trustShort(root.current).toUpperCase() + "]" : ""
                   color: root.trustColor(root.current)
+                  textFormat: Text.PlainText
                   font.family: root.fontFamily
                   font.pixelSize: Style.font.bodySmall
                   font.bold: true
@@ -655,6 +692,7 @@ Item {
                   wrapMode: Text.WordWrap
                   text: root.current ? Catalog.trustNote(root.current) : ""
                   color: Util.alpha(root.foreground, 0.72)
+                  textFormat: Text.PlainText
                   font.family: root.fontFamily
                   font.pixelSize: Style.font.caption
                 }
@@ -664,6 +702,7 @@ Item {
                   clip: true
                   text: root.bits(60, 909)
                   color: Util.alpha(root.neon, 0.22)
+                  textFormat: Text.PlainText
                   font.family: root.fontFamily
                   font.pixelSize: Style.font.caption
                 }
@@ -685,6 +724,7 @@ Item {
                     return bits.join("  \u00b7  ")
                   }
                   color: root.dim
+                  textFormat: Text.PlainText
                   font.family: root.fontFamily
                   font.pixelSize: Style.font.caption
                 }
@@ -694,6 +734,7 @@ Item {
                   elide: Text.ElideRight
                   text: root.current ? Catalog.repoLabel(root.current.repo) : ""
                   color: Util.alpha(root.neon, 0.75)
+                  textFormat: Text.PlainText
                   font.family: root.fontFamily
                   font.pixelSize: Style.font.caption
                 }
@@ -703,6 +744,7 @@ Item {
                   wrapMode: Text.WrapAnywhere
                   text: root.current && root.current.install ? "$ " + root.current.install : ""
                   color: Util.alpha(root.foreground, 0.9)
+                  textFormat: Text.PlainText
                   font.family: root.fontFamily
                   font.pixelSize: Style.font.caption
                 }
@@ -717,6 +759,7 @@ Item {
                 text: root.service && root.service.loaded
                   ? "NO MATCH" : "LOADING CATALOG\u2026"
                 color: root.dim
+                textFormat: Text.PlainText
                 font.family: root.fontFamily
                 font.pixelSize: Style.font.bodySmall
                 font.letterSpacing: 1
@@ -777,6 +820,7 @@ Item {
               elide: Text.ElideRight
               text: "\u25B8 " + root.flash
               color: root.neon
+              textFormat: Text.PlainText
               font.family: root.fontFamily
               font.pixelSize: Style.font.caption
             }
@@ -792,7 +836,7 @@ Item {
                 cap: "f5"
                 label: "refresh"
                 onActivate: function (step) {
-                  if (root.service) { root.service.refresh(); root.flash = "Refreshing\u2026" }
+                  if (root.service) { root.service.refresh(); root.say("Refreshing\u2026") }
                 }
               }
               KeyHint { cap: "esc"; label: "close" }

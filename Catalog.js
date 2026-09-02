@@ -4,22 +4,127 @@
 // formatting the surfaces share. No side effects and no QML types, so this
 // stays testable with a plain JS runtime.
 
+// Limits mirrored from bin/omasift-fetch. The helper already enforces every one
+// of these, but the shell must not trust a file on disk any more than the helper
+// trusts the network — a cache written by something else still has to land
+// inside these bounds before any of it reaches a delegate. Keep the two lists in
+// step when either moves.
+var LIMITS = {
+  raw: 12 * 1024 * 1024,     // largest serialised index worth parsing at all
+  plugins: 4000,
+  tags: 24,
+  id: 200, name: 200, desc: 500, author: 200, cat: 80, tag: 60,
+  kind: 80, status: 80, repo: 500, ver: 80, cov: 80, license: 80,
+  install: 400, note: 500, date: 10, stamp: 32,
+  stars: 100000000,
+  query: 128,                // characters taken from the search field
+  terms: 12                  // terms actually scored
+}
+
 var SORTS = ["relevance", "stars", "updated", "added", "name"]
 
-function parseIndex(raw) {
-  if (!raw) return emptyIndex()
-  try {
-    var doc = JSON.parse(raw)
-    if (!doc || doc.v !== 1 || !Array.isArray(doc.plugins)) return emptyIndex()
-    return {
-      ok: true,
-      fetchedAt: String(doc.fetchedAt || ""),
-      generatedAt: String(doc.generatedAt || ""),
-      count: doc.plugins.length,
-      plugins: doc.plugins
+var TRUST = { verified: 1, stale: 1, unreviewed: 1, builtin: 1 }
+
+// C0/C1 controls plus the zero-width and bidi characters that let a downloaded
+// name reorder the text drawn around it.
+var UNSAFE = /[\u0000-\u001f\u007f-\u009f\u200b-\u200f\u2028\u2029\u202a-\u202e\u2066-\u2069\ufeff]/g
+var ID_OK = /^[A-Za-z0-9][A-Za-z0-9._:+-]{0,199}$/
+var DATE_OK = /^[0-9]{4}-[0-9]{2}-[0-9]{2}$/
+// The same origin and owner/name path shape bin/omasift-fetch canonicalises to.
+var REPO_OK = /^https:\/\/github\.com\/[A-Za-z0-9][A-Za-z0-9._-]{0,99}\/[A-Za-z0-9][A-Za-z0-9._-]{0,99}$/
+
+// --------------------------------------------------------------- validation
+
+// Bound first, then scrub: never run a per-character pass over a hostile string
+// before its length is capped.
+function bounded(value, limit) {
+  if (typeof value !== "string") return ""
+  return value.slice(0, limit).replace(UNSAFE, " ").trim()
+}
+
+function counted(value, limit) {
+  var n = Number(value)
+  if (!isFinite(n) || n < 0) return 0
+  n = Math.floor(n)
+  return n > limit ? limit : n
+}
+
+function cleanRepo(value) {
+  var s = bounded(value, LIMITS.repo)
+  return REPO_OK.test(s) ? s : ""
+}
+
+function cleanDate(value) {
+  var s = bounded(value, LIMITS.date)
+  return DATE_OK.test(s) ? s : ""
+}
+
+function cleanRow(row) {
+  if (!row || typeof row !== "object") return null
+
+  // Checked before the cap is applied: truncating an over-long id would let two
+  // distinct listings collapse onto one identity.
+  var id = row.id
+  if (typeof id !== "string" || id.length > LIMITS.id) return null
+  id = bounded(id, LIMITS.id)
+  if (!ID_OK.test(id)) return null
+
+  var tags = []
+  if (Array.isArray(row.tags)) {
+    for (var i = 0; i < row.tags.length && tags.length < LIMITS.tags; i++) {
+      var tag = bounded(row.tags[i], LIMITS.tag)
+      if (tag) tags.push(tag)
     }
-  } catch (e) {
-    return emptyIndex()
+  }
+
+  return {
+    id: id,
+    name: bounded(row.name, LIMITS.name) || id,
+    desc: bounded(row.desc, LIMITS.desc),
+    author: bounded(row.author, LIMITS.author),
+    cat: bounded(row.cat, LIMITS.cat),
+    tags: tags,
+    kind: bounded(row.kind, LIMITS.kind),
+    status: bounded(row.status, LIMITS.status),
+    repo: cleanRepo(row.repo),
+    ver: bounded(row.ver, LIMITS.ver),
+    trust: TRUST[row.trust] === 1 ? row.trust : "unreviewed",
+    cov: bounded(row.cov, LIMITS.cov),
+    stars: counted(row.stars, LIMITS.stars),
+    license: bounded(row.license, LIMITS.license),
+    install: bounded(row.install, LIMITS.install),
+    note: bounded(row.note, LIMITS.note),
+    added: cleanDate(row.added),
+    updated: cleanDate(row.updated)
+  }
+}
+
+function parseIndex(raw) {
+  if (typeof raw !== "string" || !raw) return emptyIndex()
+  if (raw.length > LIMITS.raw) return emptyIndex()
+
+  var doc
+  try { doc = JSON.parse(raw) } catch (e) { return emptyIndex() }
+  if (!doc || doc.v !== 1 || !Array.isArray(doc.plugins)) return emptyIndex()
+
+  // Null-prototype: a listing whose id is "__proto__" would otherwise write the
+  // object's prototype instead of a key.
+  var seen = Object.create(null)
+  var rows = []
+  var limit = Math.min(doc.plugins.length, LIMITS.plugins)
+  for (var i = 0; i < limit; i++) {
+    var row = cleanRow(doc.plugins[i])
+    if (!row || seen[row.id] === 1) continue
+    seen[row.id] = 1
+    rows.push(row)
+  }
+
+  return {
+    ok: true,
+    fetchedAt: bounded(doc.fetchedAt, LIMITS.stamp),
+    generatedAt: cleanDate(doc.generatedAt),
+    count: rows.length,
+    plugins: rows
   }
 }
 
@@ -43,7 +148,7 @@ function summarize(plugins) {
 }
 
 function categories(plugins) {
-  var seen = {}
+  var seen = Object.create(null)
   for (var i = 0; i < plugins.length; i++) {
     var c = plugins[i].cat
     if (c) seen[c] = (seen[c] || 0) + 1
@@ -55,7 +160,7 @@ function categories(plugins) {
 }
 
 function kinds(plugins) {
-  var seen = {}
+  var seen = Object.create(null)
   for (var i = 0; i < plugins.length; i++) {
     var k = plugins[i].kind
     if (k) seen[k] = (seen[k] || 0) + 1
@@ -99,10 +204,18 @@ function score(plugin, terms) {
   return total
 }
 
+// The query is scored against every record on every keystroke, so both its
+// length and the number of terms are bounded before any of that starts.
 function terms(query) {
-  var raw = String(query || "").toLowerCase().trim()
+  if (typeof query !== "string") return []
+  var raw = query.slice(0, LIMITS.query).replace(UNSAFE, " ").toLowerCase().trim()
   if (!raw) return []
-  return raw.split(/\s+/).filter(function (t) { return t.length > 0 })
+  var parts = raw.split(/\s+/)
+  var out = []
+  for (var i = 0; i < parts.length && out.length < LIMITS.terms; i++) {
+    if (parts[i].length > 0) out.push(parts[i])
+  }
+  return out
 }
 
 function matchesFilters(p, f) {

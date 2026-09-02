@@ -3,8 +3,7 @@
 # What OmaSift needs, and whether it is here. Prints a line per check and
 # exits non-zero if anything required is missing.
 
-STATE_DIR="${XDG_STATE_HOME:-$HOME/.local/state}/omasift"
-CATALOG="$STATE_DIR/catalog.json"
+HELPER="$(dirname "$0")/omasift-fetch"
 FAIL=0
 
 ok()   { echo "  ok    $*"; }
@@ -21,15 +20,22 @@ done
 if command -v xdg-open >/dev/null 2>&1; then ok "xdg-open"
 else warn "xdg-open is missing — 'open repo' will do nothing"; fi
 
-if [[ -f $CATALOG ]]; then
-  # Path goes in as argv, not spliced into the program text.
-  summary=$(python3 -c 'import json,sys
-d = json.load(open(sys.argv[1]))
-print("%d listings, fetched %s" % (d["count"], d["fetchedAt"]))' "$CATALOG" 2>/dev/null)
+if [[ -x $HELPER ]]; then ok "omasift-fetch"
+else bad "omasift-fetch is missing or not executable: $HELPER"; fi
+
+# The catalog is read through the helper rather than opened here. The helper is
+# the only thing that resolves that path, and it does so with the ownership,
+# type, symlink, and size checks the shell depends on — a second reader with
+# its own idea of where the file lives would be a second thing to get wrong.
+if catalog=$("$HELPER" --read 2>/dev/null); then
+  summary=$(printf '%s' "$catalog" | python3 -c 'import json,sys
+d = json.load(sys.stdin)
+print("%d listings, fetched %s" % (d["count"], d["fetchedAt"]))' 2>/dev/null)
   if [[ -n $summary ]]; then ok "catalog: $summary"
-  else bad "catalog exists but will not parse: $CATALOG"; fi
+  else bad "catalog was readable but will not parse"; fi
 else
-  warn "no catalog yet — run: $(dirname "$0")/omasift-fetch"
+  reason=$("$HELPER" --read 2>&1 >/dev/null)
+  warn "${reason:-no catalog yet} — run: $HELPER"
 fi
 
 if command -v omarchy-shell >/dev/null 2>&1; then

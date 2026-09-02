@@ -113,13 +113,41 @@ one does:
 
 - **No shell strings are ever composed.** The only two commands it runs —
   `wl-copy` and `xdg-open` — go through `Util.execArgv`, which passes arguments
-  as positional parameters so catalog text stays literal.
+  as positional parameters so catalog text stays literal. Both are also length
+  capped at the call site.
 - **The download is data, never code.** `bin/omasift-fetch` is pure Python: no
-  shell, no `curl`. It refuses a non-HTTPS URL, caps the response size, parses
-  it as JSON, and writes only the reduced result. Nothing downloaded is ever
-  written somewhere a later command executes.
-- **URLs are checked before they reach a handler.** Any repo URL that is not
-  `https://` is dropped at fetch time and refused again before `xdg-open`.
+  shell, no `curl`. Nothing downloaded is ever written somewhere a later
+  command executes.
+- **The request is pinned to one origin.** The catalog host is an allowlist,
+  not a `https://` prefix test, and the URL must also sit inside the
+  marketplace repository's own path. Credentials and non-default ports are
+  refused, every redirect target is re-validated against the same allowlist,
+  redirects are capped, and the whole operation runs under a single monotonic
+  deadline rather than a per-socket timeout. The response size ceiling is fixed
+  in the source; `OMASIFT_MAX_BYTES` can lower it and cannot raise it.
+- **Every field is bounded before it is kept.** Item counts, tag counts, string
+  lengths, numeric ranges, date shapes, and the total output size are all
+  capped; ids are pattern-checked and de-duplicated; control, zero-width, and
+  bidi characters are stripped so a listing cannot reorder the text drawn
+  around it. The same limits are enforced again in `Catalog.js` when the shell
+  parses the cache, because a file on disk is no more trusted than the wire.
+- **URLs are canonicalised, not prefix-tested.** A repo link has to parse to
+  `https://github.com/<owner>/<name>` on the default port with no credentials,
+  query, or extra path segments — checked when the catalog is reduced, and
+  again immediately before `xdg-open`.
+- **The cache is written and read through a verified descriptor.** The helper
+  walks to its state directory component by component with `O_NOFOLLOW`,
+  refusing symlinks and directories it does not own, then stages, `fsync`s, and
+  renames entirely through that descriptor rather than through a pathname
+  something could swap. Reads are bounded, `O_NOFOLLOW`, and refuse anything
+  that is not a regular file you own. The shell never opens the file itself.
+- **The helper is bounded and reaped.** It caps its own diagnostic output, puts
+  itself in its own process group, and carries a hard `SIGALRM` backstop. The
+  shell escalates `SIGTERM` then `SIGKILL` against a helper that overruns, waits
+  for the exit rather than dropping it, and tears both down on destruction.
+- **Remote text is drawn as plain text.** Every `Text` node in the browser sets
+  `textFormat: Text.PlainText`, so no catalog string is ever interpreted as
+  markup.
 - **No privilege escalation, no package manager, no service control, no
   privileged helper, no binaries, no symlinks, no post-install hooks.**
 - **Nothing is sent anywhere.** The only network request is a GET for the
@@ -137,12 +165,18 @@ Set per bar-widget instance in `shell.json`, or through Setup › Plugins.
 ## How it works
 
 `bin/omasift-fetch` downloads the marketplace's published `site/catalog.json`
-(~5 MB), reduces it to the ~1.3 MB the UI needs, and writes it atomically to
+(~5 MB), reduces it to the ~1.4 MB the UI needs, and publishes it atomically to
 `$XDG_STATE_HOME/omasift/catalog.json`, owner-readable. The shell only ever
 parses the reduced file — a 5 MB JSON parse does not belong in the process that
 draws your desktop.
 
-The catalog refreshes every 24 hours, or on <kbd>F5</kbd>.
+The same helper reads it back (`omasift-fetch --read`). The shell does not open
+the cache itself: path resolution, the ownership and symlink checks, the size
+bound, and field re-validation all live in one place rather than being spread
+across two readers with separate ideas of where the file is.
+
+The catalog refreshes every 24 hours, or on <kbd>F5</kbd>. The hourly tick also
+re-reads the cache, so a fetch you ran by hand shows up without a restart.
 
 `bin/omasift-doctor` checks dependencies and reports catalog freshness.
 
